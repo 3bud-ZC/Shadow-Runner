@@ -105,8 +105,8 @@ export class Player extends Phaser.GameObjects.Container {
     }
 
     // Variable jump height / jump cut if released early
-    if (!input.jumpHeld && this.body.velocity.y < -150) {
-      this.body.setVelocityY(this.body.velocity.y * 0.7);
+    if (!input.jumpHeld && this.body.velocity.y < -240) {
+      this.body.setVelocityY(this.body.velocity.y * 0.75);
     }
 
     // Horizontal Movement

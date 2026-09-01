@@ -21,14 +21,14 @@ export class Arena {
     { x: GAME_WIDTH - 24, y: 0, width: 24, height: GAME_HEIGHT },
     // Ceiling
     { x: 0, y: 0, width: GAME_WIDTH, height: 24 },
-    // Lower tier platforms
-    { x: 120, y: 530, width: 300, height: 22 },
-    { x: GAME_WIDTH - 420, y: 530, width: 300, height: 22 },
-    // Mid tier center platform
-    { x: 440, y: 410, width: 400, height: 22 },
-    // Upper tier platforms
-    { x: 160, y: 270, width: 280, height: 22 },
-    { x: GAME_WIDTH - 440, y: 270, width: 280, height: 22 },
+    // Lower tier platforms (y=540, easily reachable from floor y=680)
+    { x: 100, y: 540, width: 340, height: 22 },
+    { x: GAME_WIDTH - 440, y: 540, width: 340, height: 22 },
+    // Mid tier center platform (y=410, connects smoothly with lower platforms)
+    { x: 420, y: 410, width: 440, height: 22 },
+    // Upper tier platforms (y=280, easily reachable from mid center)
+    { x: 140, y: 280, width: 300, height: 22 },
+    { x: GAME_WIDTH - 440, y: 280, width: 300, height: 22 },
   ];
 
   constructor(scene: Phaser.Scene) {
@@ -70,7 +70,6 @@ export class Arena {
     this.platforms = this.scene.physics.add.staticGroup();
 
     for (const config of this.platformConfigs) {
-      // Create an invisible arcade body for each platform
       const zone = this.scene.add.zone(
         config.x + config.width / 2,
         config.y + config.height / 2,
