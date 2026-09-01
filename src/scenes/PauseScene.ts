@@ -26,8 +26,8 @@ export class PauseScene extends Phaser.Scene {
     }
 
     // Pause Dialog Box
-    const boxW = 420;
-    const boxH = 320;
+    const boxW = 440;
+    const boxH = 360;
     const boxBg = this.add.graphics();
     boxBg.fillStyle(0x0b111f, 0.95);
     boxBg.fillRoundedRect(cx - boxW / 2, cy - boxH / 2, boxW, boxH, 10);
@@ -35,16 +35,16 @@ export class PauseScene extends Phaser.Scene {
     boxBg.strokeRoundedRect(cx - boxW / 2, cy - boxH / 2, boxW, boxH, 10);
 
     // Title
-    this.add.text(cx, cy - 100, 'PAUSED', {
+    this.add.text(cx, cy - 120, 'PAUSED', {
       fontFamily: 'Orbitron, sans-serif',
-      fontSize: '36px',
+      fontSize: '34px',
       fontStyle: 'bold',
       color: COLORS.TEXT_CYAN,
       letterSpacing: 4,
     }).setOrigin(0.5);
 
     // Subtitle
-    this.add.text(cx, cy - 60, 'SIMULATION SUSPENDED', {
+    this.add.text(cx, cy - 80, 'SIMULATION SUSPENDED', {
       fontFamily: 'Rajdhani, sans-serif',
       fontSize: '15px',
       color: COLORS.TEXT_MUTED,
@@ -52,9 +52,10 @@ export class PauseScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Action Buttons
-    this.createButton(cx, cy - 10, 'RESUME', COLORS.TEXT_CYAN, 0x00f0ff, () => this.resumeGame());
-    this.createButton(cx, cy + 50, 'RESTART', '#e2e8f0', 0x334155, () => this.restartGame());
-    this.createButton(cx, cy + 110, 'MAIN MENU', '#94a3b8', 0x1e293b, () => this.gotoMainMenu());
+    this.createButton(cx, cy - 30, 'RESUME', COLORS.TEXT_CYAN, 0x00f0ff, () => this.resumeGame());
+    this.createButton(cx, cy + 25, 'SETTINGS', '#cbd5e1', 0x00a8b5, () => this.openSettings());
+    this.createButton(cx, cy + 80, 'RESTART', '#e2e8f0', 0x334155, () => this.restartGame());
+    this.createButton(cx, cy + 135, 'MAIN MENU', '#94a3b8', 0x1e293b, () => this.gotoMainMenu());
 
     // Keyboard bindings
     this.input.keyboard?.on('keydown-ESC', () => this.resumeGame());
@@ -66,6 +67,12 @@ export class PauseScene extends Phaser.Scene {
     AudioSystem.getInstance().playMenuClick();
     this.scene.stop();
     this.scene.resume('GameScene');
+  }
+
+  private openSettings(): void {
+    AudioSystem.getInstance().playMenuClick();
+    this.scene.pause();
+    this.scene.launch('SettingsScene', { returnSceneKey: 'PauseScene' });
   }
 
   private restartGame(): void {
@@ -92,7 +99,7 @@ export class PauseScene extends Phaser.Scene {
   ): void {
     const btnContainer = this.add.container(x, y);
     const w = 240;
-    const h = 46;
+    const h = 42;
 
     const bg = this.add.graphics();
     bg.fillStyle(0x0e1628, 0.9);
@@ -102,7 +109,7 @@ export class PauseScene extends Phaser.Scene {
 
     const txt = this.add.text(0, 0, label, {
       fontFamily: 'Orbitron, sans-serif',
-      fontSize: '16px',
+      fontSize: '15px',
       fontStyle: 'bold',
       color: textColor,
     }).setOrigin(0.5);

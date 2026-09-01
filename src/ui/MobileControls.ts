@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../game/constants';
 import { InputSystem } from '../systems/InputSystem';
+import { SaveManager } from '../storage/SaveManager';
 
 export class MobileControls {
   private scene: Phaser.Scene;
@@ -12,6 +13,9 @@ export class MobileControls {
     this.scene = scene;
     this.inputSystem = inputSystem;
     this.container = scene.add.container(0, 0).setDepth(200);
+
+    const settings = SaveManager.getSettings();
+    this.container.setAlpha(settings.touchControlsOpacity);
 
     const isTouchDevice = this.checkTouchDevice();
     if (isTouchDevice) {
@@ -159,6 +163,11 @@ export class MobileControls {
     btnContainer.on('pointercancel', handleUp);
 
     this.container.add(btnContainer);
+  }
+
+  public setOpacity(opacity: number): void {
+    const clamped = Math.min(1.0, Math.max(0.3, opacity));
+    this.container.setAlpha(clamped);
   }
 
   public setVisible(visible: boolean): void {

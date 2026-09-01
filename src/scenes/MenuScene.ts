@@ -21,7 +21,7 @@ export class MenuScene extends Phaser.Scene {
     this.createMuteButton();
 
     // Game Title
-    const title = this.add.text(cx, cy - 150, 'SHADOW RUNNER', {
+    const title = this.add.text(cx, cy - 155, 'SHADOW RUNNER', {
       fontFamily: 'Orbitron, Rajdhani, sans-serif',
       fontSize: '66px',
       fontStyle: 'bold',
@@ -41,7 +41,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     // Tagline
-    this.add.text(cx, cy - 75, 'OUTRUN YOUR PAST.', {
+    this.add.text(cx, cy - 80, 'OUTRUN YOUR PAST.', {
       fontFamily: 'Orbitron, Rajdhani, sans-serif',
       fontSize: '20px',
       color: COLORS.TEXT_WHITE,
@@ -55,7 +55,7 @@ export class MenuScene extends Phaser.Scene {
       const bestSec = (save.longestSurvivalMs / 1000).toFixed(1);
       this.add.text(
         cx,
-        cy - 30,
+        cy - 35,
         `★ BEST: ${save.bestScore.toLocaleString()}  |  SURVIVED: ${bestSec}s  |  ORBS: ${save.mostOrbs} ★`,
         {
           fontFamily: 'Orbitron, monospace',
@@ -67,15 +67,17 @@ export class MenuScene extends Phaser.Scene {
       ).setOrigin(0.5);
     }
 
-    // Buttons Container: PLAY and HOW TO PLAY
-    const btnY = cy + 45;
-    this.createMenuButton(cx - 120, btnY, 'PLAY', COLORS.TEXT_CYAN, 0x00f0ff, () => this.startGame(), true);
-    this.createMenuButton(cx + 120, btnY, 'HOW TO PLAY', '#cbd5e1', 0x334155, () => this.startTutorial(), false);
+    // Buttons Row: PLAY, HOW TO PLAY, SETTINGS
+    const btnY = cy + 40;
+    this.createMenuButton(cx - 210, btnY, 'PLAY', COLORS.TEXT_CYAN, 0x00f0ff, () => this.startGame(), true);
+    this.createMenuButton(cx, btnY, 'HOW TO PLAY', '#cbd5e1', 0x334155, () => this.startTutorial(), false);
+    this.createMenuButton(cx + 210, btnY, 'SETTINGS', '#94a3b8', 0x00a8b5, () => this.openSettings(), false);
 
-    // Keyboard support: Space / Enter to start, H for tutorial, M for mute
+    // Keyboard support
     this.input.keyboard?.on('keydown-SPACE', () => this.startGame());
     this.input.keyboard?.on('keydown-ENTER', () => this.startGame());
     this.input.keyboard?.on('keydown-H', () => this.startTutorial());
+    this.input.keyboard?.on('keydown-S', () => this.openSettings());
     this.input.keyboard?.on('keydown-M', () => this.toggleMute());
 
     // Controls Guide
@@ -141,6 +143,11 @@ export class MenuScene extends Phaser.Scene {
     this.scene.start('TutorialScene');
   }
 
+  private openSettings(): void {
+    AudioSystem.getInstance().playMenuClick();
+    this.scene.start('SettingsScene', { returnSceneKey: 'MenuScene' });
+  }
+
   private createMenuButton(
     x: number,
     y: number,
@@ -151,8 +158,8 @@ export class MenuScene extends Phaser.Scene {
     isPrimary: boolean
   ): void {
     const btnContainer = this.add.container(x, y);
-    const w = isPrimary ? 200 : 200;
-    const h = 54;
+    const w = 180;
+    const h = 52;
 
     const bg = this.add.graphics();
     bg.fillStyle(isPrimary ? 0x0a1628 : 0x090f1c, 0.9);
@@ -162,7 +169,7 @@ export class MenuScene extends Phaser.Scene {
 
     const txt = this.add.text(0, 0, label, {
       fontFamily: 'Orbitron, sans-serif',
-      fontSize: isPrimary ? '22px' : '17px',
+      fontSize: isPrimary ? '20px' : '15px',
       fontStyle: 'bold',
       color: textColor,
       letterSpacing: isPrimary ? 3 : 1,

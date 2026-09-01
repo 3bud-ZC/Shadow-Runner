@@ -5,9 +5,14 @@ export class AudioSystem {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private muted: boolean = false;
+  private masterVolume: number = 1.0;
+  private sfxVolume: number = 1.0;
 
   private constructor() {
     this.muted = SaveManager.isMuted();
+    const settings = SaveManager.getSettings();
+    this.masterVolume = settings.masterVolume;
+    this.sfxVolume = settings.sfxVolume;
     this.initAudioContext();
   }
 
@@ -26,13 +31,20 @@ export class AudioSystem {
       if (AudioCtxClass) {
         this.ctx = new AudioCtxClass();
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.setValueAtTime(this.muted ? 0 : 0.35, this.ctx.currentTime);
+        this.updateMasterGain();
         this.masterGain.connect(this.ctx.destination);
       }
     } catch {
-      // Audio not supported in this environment
       this.ctx = null;
     }
+  }
+
+  private updateMasterGain(): void {
+    if (!this.ctx || !this.masterGain) return;
+    const now = this.ctx.currentTime;
+    const targetGain = this.muted ? 0 : Math.min(1.0, Math.max(0, 0.35 * this.masterVolume * this.sfxVolume));
+    this.masterGain.gain.cancelScheduledValues(now);
+    this.masterGain.gain.setValueAtTime(targetGain, now);
   }
 
   public unlock(): void {
@@ -54,17 +66,32 @@ export class AudioSystem {
   public setMuted(muted: boolean): void {
     this.muted = muted;
     SaveManager.setMuted(muted);
-
-    if (this.ctx && this.masterGain) {
-      const now = this.ctx.currentTime;
-      this.masterGain.gain.cancelScheduledValues(now);
-      this.masterGain.gain.setValueAtTime(muted ? 0 : 0.35, now);
-    }
+    this.updateMasterGain();
   }
 
   public toggleMute(): boolean {
     this.setMuted(!this.muted);
     return this.muted;
+  }
+
+  public setMasterVolume(vol: number): void {
+    this.masterVolume = Math.min(1, Math.max(0, vol));
+    SaveManager.updateSettings({ masterVolume: this.masterVolume });
+    this.updateMasterGain();
+  }
+
+  public setSfxVolume(vol: number): void {
+    this.sfxVolume = Math.min(1, Math.max(0, vol));
+    SaveManager.updateSettings({ sfxVolume: this.sfxVolume });
+    this.updateMasterGain();
+  }
+
+  public getMasterVolume(): number {
+    return this.masterVolume;
+  }
+
+  public getSfxVolume(): number {
+    return this.sfxVolume;
   }
 
   public playMenuClick(): void {
@@ -162,7 +189,6 @@ export class AudioSystem {
     const now = this.ctx.currentTime;
     const baseFreq = 520 * (1 + (comboMultiplier - 1.0) * 0.35);
 
-    // Two-tone bright harmonic chime
     [baseFreq, baseFreq * 1.5].forEach((freq, i) => {
       if (!this.ctx || !this.masterGain) return;
       const osc = this.ctx.createOscillator();
@@ -228,6 +254,78 @@ export class AudioSystem {
 
       osc.start(now + idx * 0.06);
       osc.stop(now + idx * 0.06 + 0.3);
+    });
+  }
+
+  public playCollapseWarning(): void {
+    if (this.muted || !this.ctx || !this.masterGain) return;
+    this.unlock();
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.linearRampToValueAtTime(420, now + 0.2);
+    osc.frequency.linearRampToValueAtTime(140, now + 0.4);
+
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(now);
+    osc.stop(now + 0.42);
+  }
+
+  public playCollapseStart(): void {
+    if (this.muted || !this.ctx || !this.masterGain) return;
+    this.unlock();
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(80, now);
+    osc.frequency.exponentialRampToValueAtTime(360, now + 0.3);
+    osc.frequency.exponentialRampToValueAtTime(60, now + 0.6);
+
+    gain.gain.setValueAtTime(0.45, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(now);
+    osc.stop(now + 0.65);
+  }
+
+  public playCollapseSuccess(): void {
+    if (this.muted || !this.ctx || !this.masterGain) return;
+    this.unlock();
+
+    const now = this.ctx.currentTime;
+    const fanfare = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+
+    fanfare.forEach((freq, idx) => {
+      if (!this.ctx || !this.masterGain) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+
+      gain.gain.setValueAtTime(0.35, now + idx * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.4);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(now + idx * 0.08);
+      osc.stop(now + idx * 0.08 + 0.4);
     });
   }
 

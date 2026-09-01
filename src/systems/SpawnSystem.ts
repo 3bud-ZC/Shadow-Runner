@@ -15,10 +15,11 @@ export class SpawnSystem {
 
   public selectNextSpawnPoint(
     playerX: number,
-    playerY: number
+    playerY: number,
+    riskySpawnWeight: number = 0.2
   ): SpawnPoint {
     if (this.spawnPoints.length === 0) {
-      return { id: 0, x: 640, y: 360, name: 'Default Center' };
+      return { id: 0, x: 640, y: 360, name: 'Default Center', riskTier: 'low' };
     }
 
     if (this.spawnPoints.length === 1) {
@@ -37,22 +38,22 @@ export class SpawnSystem {
       return Math.sqrt(dx * dx + dy * dy) >= this.minPlayerDistance;
     });
 
-    let selected: SpawnPoint;
+    const candidatePool = safeCandidates.length > 0 ? safeCandidates : available;
 
-    if (safeCandidates.length > 0) {
-      // Pick randomly among safe candidates
-      const idx = Math.floor(Math.random() * safeCandidates.length);
-      selected = safeCandidates[idx];
-    } else if (available.length > 0) {
-      // If no candidate is far enough, pick the furthest available point
-      selected = available.reduce((furthest, p) => {
-        const dCurrent = Math.hypot(p.x - playerX, p.y - playerY);
-        const dFurthest = Math.hypot(furthest.x - playerX, furthest.y - playerY);
-        return dCurrent > dFurthest ? p : furthest;
-      }, available[0]);
+    // 3. Risk-Weighted Selection
+    const wantsHighRisk = Math.random() < Math.min(0.9, Math.max(0, riskySpawnWeight));
+    let targetPool: SpawnPoint[];
+
+    if (wantsHighRisk) {
+      const highRiskCandidates = candidatePool.filter((p) => p.riskTier === 'high' || p.riskTier === 'medium');
+      targetPool = highRiskCandidates.length > 0 ? highRiskCandidates : candidatePool;
     } else {
-      selected = this.spawnPoints[0];
+      const lowRiskCandidates = candidatePool.filter((p) => p.riskTier === 'low' || p.riskTier === 'medium');
+      targetPool = lowRiskCandidates.length > 0 ? lowRiskCandidates : candidatePool;
     }
+
+    const idx = Math.floor(Math.random() * targetPool.length);
+    const selected = targetPool[idx] || this.spawnPoints[0];
 
     this.lastSpawnPointId = selected.id;
     return selected;

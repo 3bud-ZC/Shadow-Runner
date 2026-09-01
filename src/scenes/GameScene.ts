@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, COLORS, SHADOW_CONFIG } from '../game/constants';
+import { GAME_WIDTH, COLORS, SHADOW_CONFIG, MEMORY_COLLAPSE_CONFIG } from '../game/constants';
 import { Arena } from '../world/Arena';
 import { Player } from '../entities/Player';
 import { Shadow } from '../entities/Shadow';
+import { CollapseShadow } from '../entities/CollapseShadow';
 import { EnergyOrb } from '../entities/EnergyOrb';
 import { InputSystem } from '../systems/InputSystem';
 import { RecordingSystem } from '../systems/RecordingSystem';
 import { ShadowPlaybackSystem, ShadowState } from '../systems/ShadowPlaybackSystem';
+import { MemoryCollapseSystem } from '../systems/MemoryCollapseSystem';
 import { SpawnSystem } from '../systems/SpawnSystem';
 import { ScoreSystem } from '../systems/ScoreSystem';
 import { DifficultySystem } from '../systems/DifficultySystem';
@@ -19,12 +21,14 @@ export class GameScene extends Phaser.Scene {
   private arena!: Arena;
   private player!: Player;
   private shadows: Shadow[] = [];
+  private collapseShadow!: CollapseShadow;
   private energyOrb!: EnergyOrb;
 
   private inputSystem!: InputSystem;
   private mobileControls!: MobileControls;
   private recordingSystem!: RecordingSystem;
   private shadowPlaybackSystem!: ShadowPlaybackSystem;
+  private memoryCollapseSystem!: MemoryCollapseSystem;
   private spawnSystem!: SpawnSystem;
   private scoreSystem!: ScoreSystem;
   private difficultySystem!: DifficultySystem;
@@ -35,6 +39,7 @@ export class GameScene extends Phaser.Scene {
   private isPaused: boolean = false;
   private pauseTimestamp: number = 0;
   private maxActiveShadowsSeen: number = 0;
+  private highestStageSeen: number = 1;
 
   private wasGroundedLastFrame: boolean = true;
   private warningAudioPlayed: boolean[] = [false, false, false, false, false];
@@ -60,6 +65,7 @@ export class GameScene extends Phaser.Scene {
     this.elapsedTimeMs = 0;
     this.startTimeMs = this.time.now;
     this.maxActiveShadowsSeen = 0;
+    this.highestStageSeen = 1;
     this.shadows = [];
     this.warningAudioPlayed = [false, false, false, false, false];
     this.wasGroundedLastFrame = true;
@@ -76,6 +82,7 @@ export class GameScene extends Phaser.Scene {
     this.mobileControls = new MobileControls(this, this.inputSystem);
     this.recordingSystem = new RecordingSystem();
     this.shadowPlaybackSystem = new ShadowPlaybackSystem(this.recordingSystem);
+    this.memoryCollapseSystem = new MemoryCollapseSystem(this.recordingSystem);
     this.spawnSystem = new SpawnSystem();
     this.scoreSystem = new ScoreSystem();
     this.difficultySystem = new DifficultySystem();
@@ -89,14 +96,17 @@ export class GameScene extends Phaser.Scene {
       this.shadows.push(shadow);
     }
 
-    // 6. Spawn Initial Energy Orb
+    // 6. Spawn Memory Collapse Shadow
+    this.collapseShadow = new CollapseShadow(this, spawn.x, spawn.y);
+
+    // 7. Spawn Initial Energy Orb
     const initialOrbPos = this.spawnSystem.selectNextSpawnPoint(spawn.x, spawn.y);
     this.energyOrb = new EnergyOrb(this, initialOrbPos.x, initialOrbPos.y);
 
-    // 7. Setup Physics & Collisions
+    // 8. Setup Physics & Collisions
     this.physics.add.collider(this.player, this.arena.platforms);
 
-    // Player vs Shadows collision
+    // Player vs Normal Shadows collision
     for (const shadow of this.shadows) {
       this.physics.add.overlap(
         this.player,
@@ -107,6 +117,15 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
+    // Player vs Memory Collapse Shadow collision
+    this.physics.add.overlap(
+      this.player,
+      this.collapseShadow,
+      () => this.handlePlayerCollapseCollision(),
+      undefined,
+      this
+    );
+
     // Player vs Energy Orb overlap
     this.physics.add.overlap(
       this.player,
@@ -116,10 +135,10 @@ export class GameScene extends Phaser.Scene {
       this
     );
 
-    // 8. Create HUD
+    // 9. Create HUD
     this.createHUD();
 
-    // 9. Pause and Resume Event Listeners
+    // 10. Pause and Resume Event Listeners
     this.events.on(Phaser.Scenes.Events.PAUSE, this.handleScenePause, this);
     this.events.on(Phaser.Scenes.Events.RESUME, this.handleSceneResume, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
@@ -208,10 +227,10 @@ export class GameScene extends Phaser.Scene {
     // --- Banner Notification Container (Center) ---
     this.bannerContainer = this.add.container(GAME_WIDTH / 2, 100).setDepth(150).setAlpha(0);
     const bannerBg = this.add.graphics();
-    bannerBg.fillStyle(0x0c101d, 0.9);
-    bannerBg.fillRoundedRect(-200, -20, 400, 40, 6);
-    bannerBg.lineStyle(2, 0xff0055, 0.8);
-    bannerBg.strokeRoundedRect(-200, -20, 400, 40, 6);
+    bannerBg.fillStyle(0x0c101d, 0.92);
+    bannerBg.fillRoundedRect(-240, -22, 480, 44, 6);
+    bannerBg.lineStyle(2, 0xff0055, 0.85);
+    bannerBg.strokeRoundedRect(-240, -22, 480, 44, 6);
 
     this.bannerText = this.add.text(0, 0, '', {
       fontFamily: 'Orbitron, sans-serif',
@@ -226,6 +245,8 @@ export class GameScene extends Phaser.Scene {
 
   public override update(): void {
     if (this.isGameOver || this.isPaused) return;
+
+    const settings = SaveManager.getSettings();
 
     // 1. Process Input
     const inputState = this.inputSystem.getState();
@@ -255,6 +276,7 @@ export class GameScene extends Phaser.Scene {
 
     // 3. Difficulty Progression Update
     const diff = this.difficultySystem.update(this.elapsedTimeMs);
+    this.highestStageSeen = Math.max(this.highestStageSeen, diff.stage);
     if (diff.stageChanged) {
       AudioSystem.getInstance().playStageIncrease();
       this.showBannerNotification(`${diff.stageName} — ${diff.targetShadowCount} SHADOWS ACTIVE`);
@@ -266,17 +288,55 @@ export class GameScene extends Phaser.Scene {
     // 5. Record Movement Snapshot (20Hz)
     this.recordingSystem.record(this.elapsedTimeMs, this.player.getSnapshotData());
 
-    // 6. Update Multi-Shadow Playback System
+    // 6. Memory Collapse System Update
+    const collapseResult = this.memoryCollapseSystem.update(this.elapsedTimeMs);
+
+    if (collapseResult.justTriggeredWarning) {
+      AudioSystem.getInstance().playCollapseWarning();
+      this.showBannerNotification('SYSTEM INSTABILITY — MEMORY COLLAPSE IMMINENT');
+      if (settings.screenShake && !settings.reducedMotion) {
+        this.cameras.main.shake(300, 0.008);
+      }
+    }
+
+    if (collapseResult.isWarning) {
+      const sec = Math.ceil(collapseResult.warningCountdownSec);
+      this.bannerText.setText(`MEMORY COLLAPSE IN ${sec}...`);
+      this.bannerContainer.setAlpha(1);
+    }
+
+    if (collapseResult.justStarted) {
+      AudioSystem.getInstance().playCollapseStart();
+      ParticleEffects.createCollapsePulse(this);
+      this.showBannerNotification('⚠️ MEMORY COLLAPSE ACTIVE — SURVIVE! ⚠️');
+      if (settings.screenShake && !settings.reducedMotion) {
+        this.cameras.main.shake(400, 0.02);
+      }
+    }
+
+    if (collapseResult.isActive) {
+      this.collapseShadow.updateActiveState(collapseResult.snapshot);
+    } else {
+      this.collapseShadow.updateActiveState(null);
+    }
+
+    if (collapseResult.justSurvived) {
+      AudioSystem.getInstance().playCollapseSuccess();
+      this.scoreSystem.addBonusScore(MEMORY_COLLAPSE_CONFIG.SURVIVAL_BONUS_SCORE);
+      this.showBannerNotification(`★ MEMORY COLLAPSE SURVIVED! +${MEMORY_COLLAPSE_CONFIG.SURVIVAL_BONUS_SCORE.toLocaleString()} ★`);
+    }
+
+    // 7. Update Multi-Shadow Playback System
+    const targetShadows = collapseResult.isActive ? 0 : diff.targetShadowCount;
     const playbackResults = this.shadowPlaybackSystem.update(
       this.elapsedTimeMs,
-      diff.targetShadowCount
+      targetShadows
     );
 
     let activeCount = 0;
     for (const result of playbackResults) {
       const shadow = this.shadows[result.shadowIndex];
       if (shadow) {
-        // Play warning rumble sound when entering warning phase
         if (result.state === ShadowState.WARNING && !this.warningAudioPlayed[result.shadowIndex]) {
           this.warningAudioPlayed[result.shadowIndex] = true;
           AudioSystem.getInstance().playShadowWarning();
@@ -293,13 +353,17 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+
+    if (collapseResult.isActive) {
+      activeCount += 1;
+    }
     this.maxActiveShadowsSeen = Math.max(this.maxActiveShadowsSeen, activeCount);
 
-    // 7. Update Score System
-    this.scoreSystem.update(this.elapsedTimeMs);
+    // 8. Update Score System
+    this.scoreSystem.update(this.elapsedTimeMs, diff.comboTimeoutMs);
 
-    // 8. Update HUD Displays
-    this.updateHUD(diff.targetShadowCount);
+    // 9. Update HUD Displays
+    this.updateHUD(diff.targetShadowCount, collapseResult.isActive);
   }
 
   private pauseGame(): void {
@@ -308,7 +372,7 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch('PauseScene');
   }
 
-  private updateHUD(targetShadows: number): void {
+  private updateHUD(targetShadows: number, isCollapseActive: boolean): void {
     // Score & Orbs
     const stats = this.scoreSystem.getStats();
     this.scoreText.setText(`SCORE: ${stats.totalScore.toLocaleString()}`);
@@ -334,19 +398,25 @@ export class GameScene extends Phaser.Scene {
     const secStr = secs.toFixed(1).padStart(4, '0');
     this.timerText.setText(`TIME: ${minStr}:${secStr}`);
 
-    // Shadow Icons: ● for active, ◐ for warning/unlocked, ○ for locked
-    let shadowIcons = '';
-    for (let i = 0; i < SHADOW_CONFIG.MAX_SHADOWS; i++) {
-      const shadow = this.shadows[i];
-      if (shadow && shadow.isShadowActive()) {
-        shadowIcons += '● ';
-      } else if (i < targetShadows) {
-        shadowIcons += '◐ ';
-      } else {
-        shadowIcons += '○ ';
+    // Shadow Icons
+    if (isCollapseActive) {
+      this.shadowsIndicatorText.setText('SHADOW: ⚡ COLLAPSE ⚡');
+      this.shadowsIndicatorText.setColor(COLORS.TEXT_RED);
+    } else {
+      let shadowIcons = '';
+      for (let i = 0; i < SHADOW_CONFIG.MAX_SHADOWS; i++) {
+        const shadow = this.shadows[i];
+        if (shadow && shadow.isShadowActive()) {
+          shadowIcons += '● ';
+        } else if (i < targetShadows) {
+          shadowIcons += '◐ ';
+        } else {
+          shadowIcons += '○ ';
+        }
       }
+      this.shadowsIndicatorText.setText(`SHADOWS: ${shadowIcons.trim()}`);
+      this.shadowsIndicatorText.setColor(COLORS.TEXT_SHADOW);
     }
-    this.shadowsIndicatorText.setText(`SHADOWS: ${shadowIcons.trim()}`);
 
     // Dash Cooldown Bar
     const progress = this.player.getDashCooldownProgress(this.time.now);
@@ -389,10 +459,15 @@ export class GameScene extends Phaser.Scene {
       result.comboMultiplier > 1 ? COLORS.TEXT_GOLD : COLORS.TEXT_CYAN
     );
 
-    // Reposition Orb after short animation
+    // Reposition Orb after short animation with stage risk weighting
     this.time.delayedCall(160, () => {
       if (this.isGameOver) return;
-      const nextPoint = this.spawnSystem.selectNextSpawnPoint(this.player.x, this.player.y);
+      const diff = this.difficultySystem.getCurrentStage();
+      const nextPoint = this.spawnSystem.selectNextSpawnPoint(
+        this.player.x,
+        this.player.y,
+        diff.riskySpawnWeight
+      );
       this.energyOrb.reposition(nextPoint.x, nextPoint.y);
     });
   }
@@ -430,7 +505,7 @@ export class GameScene extends Phaser.Scene {
       duration: 250,
       ease: 'Back.easeOut',
       onComplete: () => {
-        this.time.delayedCall(1800, () => {
+        this.time.delayedCall(2000, () => {
           if (this.isGameOver) return;
           this.tweens.add({
             targets: this.bannerContainer,
@@ -446,12 +521,25 @@ export class GameScene extends Phaser.Scene {
     if (this.isGameOver || !shadow.isShadowActive() || this.player.getIsDead()) {
       return;
     }
+    this.triggerDeath();
+  }
 
+  private handlePlayerCollapseCollision(): void {
+    if (this.isGameOver || !this.collapseShadow.getIsDangerous() || this.player.getIsDead()) {
+      return;
+    }
+    this.triggerDeath();
+  }
+
+  private triggerDeath(): void {
     this.isGameOver = true;
+    const settings = SaveManager.getSettings();
 
     // Death Audio & Feedback
     AudioSystem.getInstance().playDeath();
-    this.cameras.main.shake(220, 0.03);
+    if (settings.screenShake && !settings.reducedMotion) {
+      this.cameras.main.shake(220, 0.03);
+    }
     this.player.kill();
     this.physics.pause();
 
@@ -469,6 +557,9 @@ export class GameScene extends Phaser.Scene {
         orbs: stats.orbsCollected,
         maxCombo: stats.maxCombo,
         maxShadows: this.maxActiveShadowsSeen,
+        highestStage: this.highestStageSeen,
+        memoryCollapseReached: this.memoryCollapseSystem.hasReached(),
+        memoryCollapseSurvived: this.memoryCollapseSystem.hasSurvived(),
         recordResult,
       });
     });
@@ -486,9 +577,11 @@ export class GameScene extends Phaser.Scene {
       shadow.destroy();
     }
     this.shadows = [];
+    if (this.collapseShadow) this.collapseShadow.destroy();
     if (this.energyOrb) this.energyOrb.destroy();
     if (this.recordingSystem) this.recordingSystem.clear();
     if (this.shadowPlaybackSystem) this.shadowPlaybackSystem.reset();
+    if (this.memoryCollapseSystem) this.memoryCollapseSystem.reset();
     if (this.spawnSystem) this.spawnSystem.reset();
     if (this.scoreSystem) this.scoreSystem.reset();
     if (this.difficultySystem) this.difficultySystem.reset();

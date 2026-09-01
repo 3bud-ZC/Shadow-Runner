@@ -14,6 +14,8 @@ export class DifficultySystem {
     stage: number;
     stageName: string;
     targetShadowCount: number;
+    comboTimeoutMs: number;
+    riskySpawnWeight: number;
   } {
     let newStageIndex = 0;
 
@@ -34,6 +36,8 @@ export class DifficultySystem {
       stage: current.stage,
       stageName: current.name,
       targetShadowCount: Math.min(5, Math.max(1, current.maxShadows)),
+      comboTimeoutMs: current.comboTimeoutMs || 5000,
+      riskySpawnWeight: current.riskySpawnWeight || 0.2,
     };
   }
 
@@ -42,7 +46,7 @@ export class DifficultySystem {
   }
 
   public getTargetShadowCount(): number {
-    return this.stages[this.currentStageIndex].maxShadows;
+    return Math.min(5, Math.max(1, this.stages[this.currentStageIndex].maxShadows));
   }
 
   public reset(): void {

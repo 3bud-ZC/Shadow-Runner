@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../game/constants';
 import { RunRecordResult } from '../storage/SaveManager';
+import { AudioSystem } from '../systems/AudioSystem';
 
 export interface GameOverData {
   score?: number;
@@ -8,11 +9,22 @@ export interface GameOverData {
   orbs?: number;
   maxCombo?: number;
   maxShadows?: number;
+  highestStage?: number;
+  memoryCollapseReached?: boolean;
+  memoryCollapseSurvived?: boolean;
   recordResult?: RunRecordResult;
 }
 
 export class GameOverScene extends Phaser.Scene {
   private gameOverData: GameOverData = {};
+
+  private readonly deathMessages = [
+    'YOUR PAST CAUGHT UP WITH YOU.',
+    'YOU CREATED THAT.',
+    'EVERY MOVE HAS CONSEQUENCES.',
+    'OUTRUNNING YOURSELF IS HARD.',
+    'THE ECHO WON THIS ROUND.',
+  ];
 
   constructor() {
     super({ key: 'GameOverScene' });
@@ -31,6 +43,9 @@ export class GameOverScene extends Phaser.Scene {
     const orbs = this.gameOverData.orbs || 0;
     const maxCombo = this.gameOverData.maxCombo || 1.0;
     const maxShadows = this.gameOverData.maxShadows || 1;
+    const highestStage = this.gameOverData.highestStage || 1;
+    const collapseReached = Boolean(this.gameOverData.memoryCollapseReached);
+    const collapseSurvived = Boolean(this.gameOverData.memoryCollapseSurvived);
     const recordResult = this.gameOverData.recordResult;
     const bestScore = recordResult?.currentSave.bestScore || score;
 
@@ -49,15 +64,15 @@ export class GameOverScene extends Phaser.Scene {
     }
 
     // Title: CAUGHT BY YOUR SHADOW
-    const title = this.add.text(cx, cy - 180, 'CAUGHT BY YOUR SHADOW', {
+    const title = this.add.text(cx, cy - 195, 'CAUGHT BY YOUR SHADOW', {
       fontFamily: 'Orbitron, Rajdhani, sans-serif',
-      fontSize: '44px',
+      fontSize: '38px',
       fontStyle: 'bold',
       color: COLORS.TEXT_RED,
       align: 'center',
     }).setOrigin(0.5);
 
-    // Title pulse/glitch tween
+    // Title pulse tween
     this.tweens.add({
       targets: title,
       alpha: { from: 0.85, to: 1 },
@@ -67,21 +82,30 @@ export class GameOverScene extends Phaser.Scene {
       repeat: -1,
     });
 
+    // Dynamic Contextual Death Message
+    const msgIndex = Math.floor(Math.random() * this.deathMessages.length);
+    this.add.text(cx, cy - 155, `"${this.deathMessages[msgIndex]}"`, {
+      fontFamily: 'Orbitron, sans-serif',
+      fontSize: '14px',
+      color: COLORS.TEXT_GOLD,
+      letterSpacing: 2,
+    }).setOrigin(0.5);
+
     // Stats Container Panel
     const panelBg = this.add.graphics();
-    const panelW = 620;
-    const panelH = 200;
-    const panelY = cy - 25;
-    panelBg.fillStyle(0x0a101d, 0.9);
+    const panelW = 660;
+    const panelH = 220;
+    const panelY = cy - 20;
+    panelBg.fillStyle(0x0a101d, 0.92);
     panelBg.fillRoundedRect(cx - panelW / 2, panelY - panelH / 2, panelW, panelH, 8);
-    panelBg.lineStyle(1, 0x1f2a44, 0.9);
+    panelBg.lineStyle(1.5, 0x1f2a44, 0.9);
     panelBg.strokeRoundedRect(cx - panelW / 2, panelY - panelH / 2, panelW, panelH, 8);
 
     // New Best Banner if achieved
     if (recordResult?.isNewBestScore) {
       const newBestBadge = this.add.text(cx, panelY - panelH / 2 - 16, '★ NEW BEST SCORE ★', {
         fontFamily: 'Orbitron, sans-serif',
-        fontSize: '15px',
+        fontSize: '14px',
         fontStyle: 'bold',
         color: COLORS.TEXT_GOLD,
         backgroundColor: '#3d2800',
@@ -99,26 +123,26 @@ export class GameOverScene extends Phaser.Scene {
     }
 
     // Score & Best
-    this.add.text(cx - 260, panelY - 65, 'FINAL SCORE', {
+    this.add.text(cx - 280, panelY - 80, 'FINAL SCORE', {
       fontFamily: 'Orbitron, sans-serif',
-      fontSize: '14px',
+      fontSize: '13px',
       color: COLORS.TEXT_MUTED,
     });
-    this.add.text(cx - 260, panelY - 40, score.toLocaleString(), {
+    this.add.text(cx - 280, panelY - 58, score.toLocaleString(), {
       fontFamily: 'Orbitron, monospace',
-      fontSize: '28px',
+      fontSize: '26px',
       fontStyle: 'bold',
       color: COLORS.TEXT_CYAN,
     });
 
-    this.add.text(cx + 60, panelY - 65, 'ALL-TIME BEST', {
+    this.add.text(cx + 40, panelY - 80, 'ALL-TIME BEST', {
       fontFamily: 'Orbitron, sans-serif',
-      fontSize: '14px',
+      fontSize: '13px',
       color: COLORS.TEXT_MUTED,
     });
-    this.add.text(cx + 60, panelY - 40, bestScore.toLocaleString(), {
+    this.add.text(cx + 40, panelY - 58, bestScore.toLocaleString(), {
       fontFamily: 'Orbitron, monospace',
-      fontSize: '28px',
+      fontSize: '26px',
       fontStyle: 'bold',
       color: COLORS.TEXT_GOLD,
     });
@@ -128,49 +152,75 @@ export class GameOverScene extends Phaser.Scene {
     const timeStr = `${totalSeconds}s${recordResult?.isNewLongestSurvival ? ' (NEW!)' : ''}`;
     const orbStr = `${orbs}${recordResult?.isNewMostOrbs ? ' (NEW!)' : ''}`;
 
-    this.add.text(cx - 260, panelY + 15, `TIME SURVIVED: ${timeStr}`, {
+    let collapseStatus = 'NOT REACHED';
+    let collapseColor = COLORS.TEXT_MUTED;
+    if (collapseSurvived) {
+      collapseStatus = 'SURVIVED (+1000)';
+      collapseColor = COLORS.TEXT_GOLD;
+    } else if (collapseReached) {
+      collapseStatus = 'REACHED';
+      collapseColor = COLORS.TEXT_CYAN;
+    }
+
+    this.add.text(cx - 280, panelY - 10, `TIME SURVIVED: ${timeStr}`, {
       fontFamily: 'Rajdhani, sans-serif',
-      fontSize: '18px',
+      fontSize: '17px',
       fontStyle: 'bold',
       color: '#e2e8f0',
     });
 
-    this.add.text(cx - 260, panelY + 45, `ORBS COLLECTED: ${orbStr}`, {
+    this.add.text(cx - 280, panelY + 20, `ORBS COLLECTED: ${orbStr}`, {
       fontFamily: 'Rajdhani, sans-serif',
-      fontSize: '18px',
+      fontSize: '17px',
       fontStyle: 'bold',
       color: '#e2e8f0',
     });
 
-    this.add.text(cx + 60, panelY + 15, `MAX COMBO: x${maxCombo.toFixed(1)}`, {
+    this.add.text(cx - 280, panelY + 50, `MAX COMBO: x${maxCombo.toFixed(1)}`, {
       fontFamily: 'Rajdhani, sans-serif',
-      fontSize: '18px',
+      fontSize: '17px',
       fontStyle: 'bold',
       color: '#e2e8f0',
     });
 
-    this.add.text(cx + 60, panelY + 45, `ECHOES FACED: ${maxShadows} / 5`, {
+    this.add.text(cx + 40, panelY - 10, `HIGHEST: STAGE ${highestStage}`, {
       fontFamily: 'Rajdhani, sans-serif',
-      fontSize: '18px',
+      fontSize: '17px',
       fontStyle: 'bold',
       color: '#e2e8f0',
     });
 
-    // Buttons Container
-    const btnY = cy + 125;
-    this.createButton(cx - 130, btnY, 'RETRY', '#00f0ff', 0x00f0ff, () => this.restartGame());
-    this.createButton(cx + 130, btnY, 'MAIN MENU', '#cbd5e1', 0x707e94, () => this.gotoMainMenu());
+    this.add.text(cx + 40, panelY + 20, `ECHOES FACED: ${maxShadows} / 5`, {
+      fontFamily: 'Rajdhani, sans-serif',
+      fontSize: '17px',
+      fontStyle: 'bold',
+      color: '#e2e8f0',
+    });
+
+    this.add.text(cx + 40, panelY + 50, `MEMORY COLLAPSE: ${collapseStatus}`, {
+      fontFamily: 'Rajdhani, sans-serif',
+      fontSize: '17px',
+      fontStyle: 'bold',
+      color: collapseColor,
+    });
+
+    // Buttons Row: RETRY, SETTINGS, MAIN MENU
+    const btnY = cy + 130;
+    this.createButton(cx - 180, btnY, 'RETRY', '#00f0ff', 0x00f0ff, () => this.restartGame());
+    this.createButton(cx, btnY, 'SETTINGS', '#94a3b8', 0x00a8b5, () => this.openSettings());
+    this.createButton(cx + 180, btnY, 'MAIN MENU', '#cbd5e1', 0x707e94, () => this.gotoMainMenu());
 
     // Keyboard Shortcuts
     this.input.keyboard?.on('keydown-SPACE', () => this.restartGame());
     this.input.keyboard?.on('keydown-R', () => this.restartGame());
     this.input.keyboard?.on('keydown-ENTER', () => this.restartGame());
+    this.input.keyboard?.on('keydown-S', () => this.openSettings());
     this.input.keyboard?.on('keydown-ESC', () => this.gotoMainMenu());
 
     // Shortcuts hint
-    this.add.text(cx, cy + 195, '[SPACE / R] Retry     |     [ESC] Main Menu', {
+    this.add.text(cx, cy + 195, '[SPACE / R] Retry   |   [S] Settings   |   [ESC] Main Menu', {
       fontFamily: 'Rajdhani, sans-serif',
-      fontSize: '16px',
+      fontSize: '15px',
       color: COLORS.TEXT_MUTED,
     }).setOrigin(0.5);
   }
@@ -184,18 +234,18 @@ export class GameOverScene extends Phaser.Scene {
     callback: () => void
   ): void {
     const btnContainer = this.add.container(x, y);
-    const w = 180;
-    const h = 50;
+    const w = 160;
+    const h = 46;
 
     const bg = this.add.graphics();
     bg.fillStyle(0x0e1320, 0.9);
     bg.fillRoundedRect(-w / 2, -h / 2, w, h, 6);
-    bg.lineStyle(2, borderColor, 0.8);
+    bg.lineStyle(1.5, borderColor, 0.8);
     bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 6);
 
     const txt = this.add.text(0, 0, label, {
       fontFamily: 'Orbitron, sans-serif',
-      fontSize: '18px',
+      fontSize: '16px',
       fontStyle: 'bold',
       color: textColor,
     }).setOrigin(0.5);
@@ -211,14 +261,14 @@ export class GameOverScene extends Phaser.Scene {
       bg.lineStyle(2, 0xffffff, 1);
       bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 6);
       txt.setColor('#ffffff');
-      btnContainer.setScale(1.05);
+      btnContainer.setScale(1.04);
     });
 
     btnContainer.on('pointerout', () => {
       bg.clear();
       bg.fillStyle(0x0e1320, 0.9);
       bg.fillRoundedRect(-w / 2, -h / 2, w, h, 6);
-      bg.lineStyle(2, borderColor, 0.8);
+      bg.lineStyle(1.5, borderColor, 0.8);
       bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 6);
       txt.setColor(textColor);
       btnContainer.setScale(1);
@@ -228,10 +278,17 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   private restartGame(): void {
+    AudioSystem.getInstance().playMenuClick();
     this.scene.start('GameScene');
   }
 
+  private openSettings(): void {
+    AudioSystem.getInstance().playMenuClick();
+    this.scene.start('SettingsScene', { returnSceneKey: 'GameOverScene' });
+  }
+
   private gotoMainMenu(): void {
+    AudioSystem.getInstance().playMenuClick();
     this.scene.start('MenuScene');
   }
 }

@@ -19,11 +19,11 @@ Play the live web build directly in your desktop or mobile browser:
 
 Rather than escaping from traditional enemy AI, the player is trapped in a multi-tier cyber arena escaping from their **own past movement**.
 
-* Every jump, run, and dash is recorded at 20Hz into a bounded ring buffer.
-* After a brief delay (starting at 5 seconds), a **Shadow** materializes and deterministically replays your historical path.
-* Over time, additional delayed Shadows enter the arena (up to **5 simultaneous Echoes**).
-* Collect **Energy Orbs** to build rapid collection combos up to **x3.0**, earn points, and climb the local leaderboard.
-* Touching any active Shadow means instant death.
+* **Deterministic Historical Replay**: Every jump, run, and dash is recorded at 20Hz into a bounded rolling snapshot buffer.
+* **Escalating Multi-Shadow Chaos**: After a brief delay (5s, 10s, 15s, 20s, 25s), up to **5 concurrent historical Echoes** materialize and replicate your past routes.
+* **Signature Mid-Run Event — Memory Collapse**: At 60 seconds of survival, reality destabilizes. Existing Shadows dissolve and a time-compressed (1.25x speed) historical Shadow emerges from your previous 30 seconds of movement. Surviving the 20s event rewards **+1,000 bonus points**!
+* **Risk-Aware Energy Orbs & Combos**: Collect glowing Energy Orbs across dynamic high-risk crossing points to build rapid collection combos up to **x3.0 MAX COMBO**.
+* **Settings & Accessibility**: Master volume, SFX volume, screen shake toggle, reduced motion mode, and mobile touch control opacity adjustments.
 
 ---
 
@@ -36,6 +36,7 @@ Rather than escaping from traditional enemy AI, the player is trapped in a multi
 | **Jump** | `W`, `Up` Arrow, or `SPACE` (with Coyote Time & Jump Buffering) |
 | **Directional Dash** | `SHIFT` (760 speed burst with 1.4s cooldown) |
 | **Pause / Resume** | `ESC` or `P` |
+| **Settings** | `S` (from menus or pause overlay) |
 | **Mute / Unmute Audio** | `M` or Speaker icon |
 
 ### Mobile Touch Controls

@@ -154,9 +154,9 @@ describe('ScoreSystem', () => {
 
 describe('SpawnSystem', () => {
   const mockPoints: SpawnPoint[] = [
-    { id: 1, x: 100, y: 100, name: 'P1' },
-    { id: 2, x: 500, y: 500, name: 'P2' },
-    { id: 3, x: 900, y: 500, name: 'P3' },
+    { id: 1, x: 100, y: 100, name: 'P1', riskTier: 'low' },
+    { id: 2, x: 500, y: 500, name: 'P2', riskTier: 'medium' },
+    { id: 3, x: 900, y: 500, name: 'P3', riskTier: 'high' },
   ];
 
   it('selects safe spawn points away from the player', () => {
@@ -178,8 +178,8 @@ describe('SpawnSystem', () => {
 
   it('handles fallback when all points are close to player', () => {
     const closePoints: SpawnPoint[] = [
-      { id: 1, x: 100, y: 100, name: 'Close 1' },
-      { id: 2, x: 110, y: 110, name: 'Close 2' },
+      { id: 1, x: 100, y: 100, name: 'Close 1', riskTier: 'low' },
+      { id: 2, x: 110, y: 110, name: 'Close 2', riskTier: 'low' },
     ];
     const spawnSystem = new SpawnSystem(closePoints, 500); // 500px min dist
 
@@ -191,7 +191,7 @@ describe('SpawnSystem', () => {
     const emptySpawn = new SpawnSystem([]);
     expect(emptySpawn.selectNextSpawnPoint(0, 0).id).toBe(0);
 
-    const singleSpawn = new SpawnSystem([{ id: 99, x: 200, y: 200, name: 'Single' }]);
+    const singleSpawn = new SpawnSystem([{ id: 99, x: 200, y: 200, name: 'Single', riskTier: 'low' }]);
     expect(singleSpawn.selectNextSpawnPoint(0, 0).id).toBe(99);
   });
 });
