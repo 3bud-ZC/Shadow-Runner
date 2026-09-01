@@ -1,41 +1,21 @@
 # Shadow Runner Status
 
-Overall Completion: 80%
-Current Milestone: M04 — Advanced Gameplay & Polish
+Overall Completion: 100%
+Current Milestone: M05 — Release Candidate
 Milestone Status: COMPLETE
+Release Status: RELEASED
+Release Version: v1.0.0
 
-## Implemented
-- **Memory Collapse Signature Event (`MemoryCollapseSystem` & `CollapseShadow`)**:
-  - Configurable event triggering at 60 seconds of survival (`MEMORY_COLLAPSE_CONFIG.TRIGGER_TIME_MS = 60000`).
-  - Pre-event warning countdown at 57s (`SYSTEM INSTABILITY — MEMORY COLLAPSE IN 3... 2... 1...`) with dissonant audio alarm and screen glitch.
-  - At 60s, existing Shadows dissolve and a time-compressed (1.25x speed) historical Shadow emerges derived from the player's prior 30s of recorded movement without mutating or duplicating the 60s recording buffer.
-  - Collapse Shadow features glowing electric cyan core, unstable chromatic aura, double after-image trails, and fair lethal collision.
-  - 20s event duration (60s to 80s). Surviving awards a +1,000 score bonus and celebratory fanfare, followed by smooth restoration of the 5-shadow field.
-- **Settings & Accessibility System (`SettingsScene` & `SaveManager`)**:
-  - Dedicated interactive Settings screen accessible from Main Menu (`SETTINGS` button / `S` key), Pause overlay, and Game Over screen.
-  - Master Volume (0%–100%) and SFX Volume (0%–100%) with logarithmic gain scaling and mute synchronization.
-  - Screen Shake toggle (ON/OFF) disabling impact, death, and collapse camera shake when turned off.
-  - Reduced Motion toggle (ON/OFF) auto-detecting `prefers-reduced-motion` and damping heavy scaling tweens and particle emission counts.
-  - Mobile Touch Controls Opacity adjustment (30%–100%).
-  - Full local persistence in `SaveManager` with numeric boundary clamping and corrupted data fallback.
-- **Risk-Aware Orb Spawning (`SpawnSystem` & `SpawnPoints`)**:
-  - Spawn points categorized into `low`, `medium`, and `high` risk tiers (platforms, center crossings, and aerial gaps).
-  - Dynamic risk weighting scaling with difficulty stages (e.g. Stage 1: 10% risk, Stage 5: 80% risk), encouraging cross-arena movement while strictly preserving minimum player distance and unreachable point safety.
-- **Extended 5-Stage Difficulty Progression (`DifficultySystem`)**:
-  - Stage 1 (0s–15s): 1 Shadow, 5.0s combo timeout, 10% risky spawns.
-  - Stage 2 (15s–30s): 2 Shadows, 5.0s combo timeout, 25% risky spawns.
-  - Stage 3 (30s–50s): 3 Shadows, 4.8s combo timeout, 40% risky spawns.
-  - Stage 4 (50s–60s): 4 Shadows, 4.5s combo timeout, 60% risky spawns.
-  - [60s–80s: Memory Collapse Signature Event].
-  - Stage 5 (80s+): 5 Shadows maximum, 4.0s tight combo timeout, 80% risky spawns.
-- **Expanded Run Statistics & Dynamic Death Messages (`GameOverScene`)**:
-  - Dynamic contextual death messages selected from a curated pool.
-  - Comprehensive run summary: Final Score, All-Time Best, Survival Time, Orbs Collected, Max Combo Tier, Echoes Faced, Highest Stage Reached, and Memory Collapse Status (`NOT REACHED`, `REACHED`, `SURVIVED (+1000)`).
-- **Responsive Viewport & Mobile Polish**:
-  - Full multi-touch support with configurable touch button opacity.
-  - Clean canvas auto-centering across orientations and non-blocking portrait rotation hints.
-- **GitHub Actions & Live Deployment Continuity**:
-  - Automated deployment workflow `.github/workflows/deploy-pages.yml` successfully deployed to GitHub Pages.
+## Final Features
+- **Core Delayed Echo Mechanic**: Player movement history recorded at 20Hz into a bounded rolling snapshot buffer and deterministically replayed as up to 5 concurrent lethal historical Shadows.
+- **Memory Collapse Signature Event**: 20s reality destabilization event at 60s survival where normal Shadows dissolve and a time-compressed (1.25x speed) historical Echo emerges, awarding +1,000 bonus points upon survival.
+- **Dynamic Energy Orb & Combo System**: Risk-aware orb spawn distribution across low, medium, and high-risk arena corridors with step-up combo multipliers up to x3.0.
+- **Full Settings & Accessibility**: Master volume, SFX volume, screen shake toggle, reduced motion support, and mobile touch control opacity adjustment.
+- **Unified Cross-Platform Controls**: Responsive desktop keyboard and mobile on-screen multi-touch D-pad/action controls with window focus-loss protection.
+- **Procedural Web Audio API Synthesizer**: Complete sound design (jumps, lands, dashes, orb chimes, warnings, fanfares, collapse sirens, death impacts) with zero external audio assets.
+- **Interactive Multi-Step Tutorial & Modal Pause Overlay**: 6 visual instructional steps and suspend/resume game lifecycle.
+- **Local Persistence**: Resilient local storage of all-time high scores, longest survival time, most orbs, and user preferences with migration fallbacks.
+- **Release Presentation**: Vector SVG favicon, Open Graph social metadata, responsive viewport scaling, and orientation guidance.
 
 ## Architecture
 ```text
@@ -44,6 +24,7 @@ shadow-runner/
 │   └── workflows/
 │       └── deploy-pages.yml
 ├── public/
+│   ├── favicon.svg
 │   └── assets/
 ├── src/
 │   ├── main.ts
@@ -89,6 +70,7 @@ shadow-runner/
 │   ├── gameplay.test.ts
 │   ├── m03.test.ts
 │   ├── m04.test.ts
+│   ├── m05.test.ts
 │   └── systems.test.ts
 ├── index.html
 ├── package.json
@@ -98,55 +80,65 @@ shadow-runner/
 └── STATUS.md
 ```
 
-## Gameplay / Balance Changes
-- **Memory Collapse**: Added 20s signature event at 60s with 1.25x historical replay speed and +1,000 score bonus.
-- **Late-Run Pressure**: Tightened combo timeout window from 5.0s down to 4.0s in Stage 5 (80s+) and increased risky spawn weighting to 80% rather than increasing shadow counts beyond 5.
-- **Safe Hitboxes**: Maintained standard 26x38 physics hitboxes across player, standard shadows, and collapse shadow for 100% fair platforming and collision.
+## Gameplay & Balance
+- **Fair Physics & Hitboxes**: Standard 26x38 pixel hitbox maintained consistently across player, normal shadows, and collapse shadow.
+- **Pacing**: 5-stage difficulty progression extending past 75s with tight 4.0s combo windows and 80% risk-weighted spawn bias rather than infinite shadow proliferation.
+- **Movement Responsiveness**: 130ms Coyote Time, 120ms Jump Buffering, variable jump velocity cut on button release, and directional 760-speed dash with visual cooldown gauge.
+
+## Accessibility & Settings
+- Screen Shake toggle allows disabling intense camera shakes.
+- Reduced Motion mode auto-detects `prefers-reduced-motion` and scales down particle volume and rapid tween scaling.
+- Audio volume sliders provide independent Master (0%–100%) and SFX (0%–100%) gain controls.
+- Touch controls opacity slider allows customizable on-screen control visibility.
 
 ## Verification
-- **Automated Tests**: 34 unit tests passing across 4 test suites (`tests/systems.test.ts`, `tests/gameplay.test.ts`, `tests/m03.test.ts`, `tests/m04.test.ts`).
-- **TypeScript Typecheck**: `tsc --noEmit` passes with 0 errors in strict mode.
-- **Production Build**: Vite builds production bundle cleanly to `dist/` in 3.21s with relative asset paths.
-- **GitHub Actions CI/CD**: Run #33512567288 succeeded on all steps (`Setup Node`, `npm ci`, `typecheck`, `test`, `build`, `configure-pages`, `upload-artifact`, `deploy-pages`).
-- **Live URL Verification**: `https://3bud-zc.github.io/Shadow-Runner/` verified live (HTTP 200).
+- **TypeScript Typecheck**: Strict mode `tsc --noEmit` passes with 0 errors.
+- **Automated Tests**: 40 unit tests passing across 5 test suites (`tests/systems.test.ts`, `tests/gameplay.test.ts`, `tests/m03.test.ts`, `tests/m04.test.ts`, `tests/m05.test.ts`).
+- **Production Build**: Production bundle built cleanly to `dist/` with relative sub-path asset resolution.
+- **GitHub Actions CI/CD**: Verified automated typecheck, test, build, and Pages deployment pipeline.
+- **Live URL**: Verified live deployment on GitHub Pages (`https://3bud-zc.github.io/Shadow-Runner/`).
 
-## Tests / Commands Run
-- `npm run typecheck` (exit code 0, 0 errors)
-- `npm test` (exit code 0, 34 unit tests passed)
-- `npm run build` (exit code 0, bundle generated in 3.21s)
-- `git push origin main` (exit code 0, synced with remote origin/main)
+## Automated Tests
+- `tests/systems.test.ts` (7 tests): Rolling history buffer, linear snapshot interpolation, delayed multi-shadow playback.
+- `tests/gameplay.test.ts` (14 tests): Difficulty stages, score calculations, safe spawn point allocation, local storage saves.
+- `tests/m03.test.ts` (5 tests): Web Audio API synthesis, audio mute persistence, unified touch/keyboard input mapping.
+- `tests/m04.test.ts` (8 tests): Memory Collapse lifecycle, time-compressed sampling formula, settings bounds clamping, risk-weighted orb spawning.
+- `tests/m05.test.ts` (6 tests): Window focus loss input reset, legacy storage schema migration and corrupted data recovery, multi-orb combo bounds, dynamic audio gain scaling.
 
 ## Browser / Mobile Verification
-- Settings screen controls tested for master volume, SFX volume, screen shake toggle, reduced motion, and touch opacity.
-- Multi-touch D-pad and action buttons verified responsive without layout overlap on mobile viewports.
-- Web Audio synthesis verified with dynamic volume attenuation.
+- Desktop viewports (1920x1080, 1366x768, 1280x720) render crisp 16:9 centered canvas.
+- Mobile landscape viewports display comfortable D-pad and action touch targets without HUD clipping.
+- Mobile portrait viewports display non-blocking rotation guidance with full touch responsiveness.
+- Window blur / tab switching safely resets active movement states without stuck keys.
 
 ## Performance Review
-- Bounded 60s ring buffer shared across normal shadows and Memory Collapse without array duplicating or unbounded allocations.
-- Web Audio oscillators and gain nodes cleanly disconnect and terminate on sound completion.
-- Particle effects bound lifetimes and reduce count automatically when Reduced Motion is enabled.
+- Bounded 60s ring buffer shared across all systems with zero unbounded memory allocations.
+- Transient Web Audio nodes disconnect and terminate cleanly on sound completion.
+- Particle counts and tween durations bounded with automatic pooling and reduction during Reduced Motion mode.
 
 ## Deployment
 - **Repository**: `https://github.com/3bud-ZC/Shadow-Runner`
-- **Branch**: `main`
-- **Pushed Commit SHA**: `9f9916db4e142be043252e8de79bbef330ec2205`
+- **Release Branch**: `main`
+- **Release Tag**: `v1.0.0`
 - **GitHub Pages URL**: `https://3bud-zc.github.io/Shadow-Runner/`
-- **GitHub Actions Run**: `https://github.com/3bud-ZC/Shadow-Runner/actions/runs/33512567288` (Status: `completed`, Conclusion: `success`).
 
 ## Live URL
 `https://3bud-zc.github.io/Shadow-Runner/`
 
+## Release Metadata
+- **Release Version**: `v1.0.0`
+- **Implementation Commit**: `d0e1d9eb974489b6c5872c8c1103c716296fea9b`
+- **Release Branch**: `main`
+- **Release Tag**: `v1.0.0`
+
 ## Known Issues
-- None. All automated tests, typecheck, build, and GitHub Pages deployment are passing and live.
+- None. All release criteria, automated tests, and live production deployments are verified.
 
-## Human Verification Needed
-- Full playthrough across the 60s mark to experience the Memory Collapse transition and audio-visual feedback in personal browser.
-
-## Next Milestone
-M05 — Release Candidate
+## Human Verification Recommended
+- Public playtesting on diverse mobile browsers (iOS Safari / Android Chrome) to verify device-specific touch haptics and audio unlocks.
 
 ## Git State
 - Branch: `main`
-- Remote: `origin = https://github.com/3bud-ZC/Shadow-Runner.git`
+- Release Tag: `v1.0.0`
 - Tracking: `origin/main`
 - Clean working tree.
