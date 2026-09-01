@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="14" fill="#07090e" />
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="none" stroke="#1f2a44" stroke-width="2" />
+  <!-- Shadow Echo (Red/Magenta) -->
+  <path d="M18 46 L28 18 L38 34 L28 46 Z" fill="#ff0055" opacity="0.6" />
+  <circle cx="28" cy="18" r="4" fill="#ff0054" opacity="0.7" />
+  <!-- Player Runner (Cyan/White) -->
+  <path d="M26 46 L36 18 L46 34 L36 46 Z" fill="#00f0ff" />
+  <circle cx="36" cy="18" r="4" fill="#ffffff" />
+  <!-- Energy Pulse Dot -->
+  <circle cx="48" cy="24" r="3" fill="#ffbe0b" />
+</svg>

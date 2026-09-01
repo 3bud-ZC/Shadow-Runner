@@ -65,11 +65,22 @@ export class TutorialScene extends Phaser.Scene {
       subtitle: 'Risk vs Reward: Score and Scale',
       instructions: [
         { label: 'ENERGY ORBS', detail: 'Touch glowing Orbs to earn +100 base score.' },
-        { label: 'COMBO MULTIPLIER', detail: 'Collect within 5 seconds to build up to x3.0 MAX COMBO.' },
+        { label: 'COMBO MULTIPLIER', detail: 'Collect within the combo window to build up to x3.0 MAX COMBO.' },
         { label: 'SURVIVAL', detail: 'Earn +10 score per second as Shadows multiply over time.' },
       ],
       highlight: 'Cross dangerous paths to keep your combo alive and set high scores!',
       icon: '★',
+    },
+    {
+      title: 'STEP 6 — MEMORY COLLAPSE',
+      subtitle: 'Survive the signature mid-run destabilization',
+      instructions: [
+        { label: 'TRIGGER', detail: 'At 60 seconds, a 3-second instability alarm sounds.' },
+        { label: 'DESTABILIZATION', detail: 'Normal Shadows dissolve and a 1.25x time-compressed Echo emerges!' },
+        { label: 'SURVIVAL BONUS', detail: 'Survive 20 seconds to earn +1,000 score bonus and restore the arena.' },
+      ],
+      highlight: 'A true test of route mastery. Outrun your compressed recent past!',
+      icon: '⚡ ★',
     },
   ];
 
@@ -189,16 +200,16 @@ export class TutorialScene extends Phaser.Scene {
     for (const item of step.instructions) {
       const badgeBg = this.add.graphics();
       badgeBg.fillStyle(0x18243b, 1);
-      badgeBg.fillRoundedRect(-cardW / 2 + 40, currentY - 12, 110, 24, 4);
+      badgeBg.fillRoundedRect(-cardW / 2 + 40, currentY - 12, 120, 24, 4);
 
-      const badgeTxt = this.add.text(-cardW / 2 + 95, currentY, item.label, {
+      const badgeTxt = this.add.text(-cardW / 2 + 100, currentY, item.label, {
         fontFamily: 'Orbitron, sans-serif',
         fontSize: '11px',
         fontStyle: 'bold',
         color: COLORS.TEXT_CYAN,
       }).setOrigin(0.5);
 
-      const detailTxt = this.add.text(-cardW / 2 + 170, currentY, item.detail, {
+      const detailTxt = this.add.text(-cardW / 2 + 175, currentY, item.detail, {
         fontFamily: 'Rajdhani, sans-serif',
         fontSize: '18px',
         fontStyle: 'bold',

@@ -30,6 +30,13 @@ export class SaveManager {
   private static readonly STORAGE_KEY = 'shadow_runner_save_v1';
   private static memoryFallback: SaveData | null = null;
 
+  private static sanitizeNumber(val: unknown, fallback: number = 0): number {
+    if (typeof val !== 'number' || isNaN(val) || !isFinite(val)) {
+      return fallback;
+    }
+    return Math.max(0, val);
+  }
+
   private static getDefaultData(): SaveData {
     return {
       bestScore: 0,
@@ -54,7 +61,7 @@ export class SaveManager {
     }
 
     const clamp = (val: unknown, min: number, max: number, def: number): number => {
-      if (typeof val !== 'number' || isNaN(val)) return def;
+      if (typeof val !== 'number' || isNaN(val) || !isFinite(val)) return def;
       return Math.min(max, Math.max(min, val));
     };
 
@@ -75,9 +82,9 @@ export class SaveManager {
           const parsed = JSON.parse(raw);
           if (typeof parsed === 'object' && parsed !== null) {
             return {
-              bestScore: typeof parsed.bestScore === 'number' && !isNaN(parsed.bestScore) ? Math.max(0, Math.floor(parsed.bestScore)) : 0,
-              longestSurvivalMs: typeof parsed.longestSurvivalMs === 'number' && !isNaN(parsed.longestSurvivalMs) ? Math.max(0, parsed.longestSurvivalMs) : 0,
-              mostOrbs: typeof parsed.mostOrbs === 'number' && !isNaN(parsed.mostOrbs) ? Math.max(0, Math.floor(parsed.mostOrbs)) : 0,
+              bestScore: Math.floor(this.sanitizeNumber(parsed.bestScore)),
+              longestSurvivalMs: this.sanitizeNumber(parsed.longestSurvivalMs),
+              mostOrbs: Math.floor(this.sanitizeNumber(parsed.mostOrbs)),
               muted: typeof parsed.muted === 'boolean' ? parsed.muted : false,
               settings: this.sanitizeSettings(parsed.settings),
             };
@@ -86,20 +93,26 @@ export class SaveManager {
       }
 
       if (this.memoryFallback) {
-        return { ...this.memoryFallback };
+        return {
+          bestScore: Math.floor(this.sanitizeNumber(this.memoryFallback.bestScore)),
+          longestSurvivalMs: this.sanitizeNumber(this.memoryFallback.longestSurvivalMs),
+          mostOrbs: Math.floor(this.sanitizeNumber(this.memoryFallback.mostOrbs)),
+          muted: Boolean(this.memoryFallback.muted),
+          settings: this.sanitizeSettings(this.memoryFallback.settings),
+        };
       }
 
       return this.getDefaultData();
     } catch {
-      return this.memoryFallback ? { ...this.memoryFallback } : this.getDefaultData();
+      return this.getDefaultData();
     }
   }
 
   public static save(data: SaveData): boolean {
     const sanitized: SaveData = {
-      bestScore: Math.max(0, Math.floor(data.bestScore || 0)),
-      longestSurvivalMs: Math.max(0, data.longestSurvivalMs || 0),
-      mostOrbs: Math.max(0, Math.floor(data.mostOrbs || 0)),
+      bestScore: Math.floor(this.sanitizeNumber(data.bestScore)),
+      longestSurvivalMs: this.sanitizeNumber(data.longestSurvivalMs),
+      mostOrbs: Math.floor(this.sanitizeNumber(data.mostOrbs)),
       muted: Boolean(data.muted),
       settings: this.sanitizeSettings(data.settings),
     };
@@ -143,9 +156,9 @@ export class SaveManager {
 
   public static recordRun(score: number, survivalTimeMs: number, orbs: number): RunRecordResult {
     const current = this.load();
-    const safeScore = Math.max(0, Math.floor(score || 0));
-    const safeTime = Math.max(0, survivalTimeMs || 0);
-    const safeOrbs = Math.max(0, Math.floor(orbs || 0));
+    const safeScore = Math.floor(this.sanitizeNumber(score));
+    const safeTime = this.sanitizeNumber(survivalTimeMs);
+    const safeOrbs = Math.floor(this.sanitizeNumber(orbs));
 
     const isNewBestScore = safeScore > current.bestScore;
     const isNewLongestSurvival = safeTime > current.longestSurvivalMs;

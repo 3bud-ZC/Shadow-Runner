@@ -27,9 +27,12 @@ export class InputSystem {
   private touchDashPressed: boolean = false;
   private touchPausePressed: boolean = false;
 
+  private blurHandler?: () => void;
+
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
     this.initKeys();
+    this.initFocusHandlers();
   }
 
   private initKeys(): void {
@@ -43,6 +46,12 @@ export class InputSystem {
     this.keyShift = this.scene.input.keyboard.addKey('SHIFT');
     this.keyP = this.scene.input.keyboard.addKey('P');
     this.keyEsc = this.scene.input.keyboard.addKey('ESC');
+  }
+
+  private initFocusHandlers(): void {
+    if (typeof window === 'undefined') return;
+    this.blurHandler = () => this.resetAll();
+    window.addEventListener('blur', this.blurHandler);
   }
 
   public setTouchLeft(down: boolean): void {
@@ -137,7 +146,18 @@ export class InputSystem {
     this.touchPausePressed = false;
   }
 
-  public destroy(): void {
+  public resetAll(): void {
     this.resetTouch();
+    if (this.scene.input?.keyboard) {
+      this.scene.input.keyboard.resetKeys();
+    }
+  }
+
+  public destroy(): void {
+    this.resetAll();
+    if (typeof window !== 'undefined' && this.blurHandler) {
+      window.removeEventListener('blur', this.blurHandler);
+      this.blurHandler = undefined;
+    }
   }
 }
