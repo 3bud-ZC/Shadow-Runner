@@ -1,109 +1,139 @@
 # Shadow Runner Status
 
-Overall Completion: 40%
-Current Milestone: M02 — Core Gameplay Systems
+Overall Completion: 60%
+Current Milestone: M03 — UX, Mobile & Game Feel
 Milestone Status: COMPLETE
 
 ## Implemented
-- **Multi-Shadow Orchestration (`ShadowPlaybackSystem` & `Shadow`)**:
-  - Supports up to 5 concurrent independent delayed Shadows reading from shared recording history (delays: 5s, 10s, 15s, 20s, 25s).
-  - Progressive introduction unlocked via difficulty stages.
-  - Distinct visual identification per Shadow index (color-coded glow/core: crimson, purple, magenta, dark rose, and ghost violet, with torso rank indicator pips).
-  - Independent state machines (`DORMANT`, `WARNING`, `ACTIVE`), pre-spawn warning vortexes, and collision handling.
-- **Energy Orb System (`EnergyOrb`, `SpawnPoints`, `SpawnSystem`)**:
-  - Procedural glowing/pulsing collectible orb entity with particle burst feedback and floating animation.
-  - 18 validated safe spawn points across platforms, floor, and air gaps in the Arena.
-  - Safe distance-based spawn selection avoiding immediate repeats and proximity to the player.
-  - Guarantees at least one active collectible during normal gameplay.
-- **Core Score & Combo System (`ScoreSystem`)**:
-  - Elapsed time survival points (+10 pts/sec).
-  - Collectible orb points (+100 base pts).
-  - Step-up combo multipliers: x1.0, x1.2, x1.5, x2.0, x2.5, capped at x3.0.
-  - 5.0-second combo timeout window with remaining progress tracking.
-  - Animated in-game floating score popups (`+150 (x1.5)`).
-- **Difficulty System (`DifficultySystem`)**:
-  - Data-driven 5-stage progression based on survival time (0–15s: 1 Shadow, 15–30s: 2 Shadows, 30–50s: 3 Shadows, 50–75s: 4 Shadows, 75s+: 5 Shadows).
-  - Non-intrusive banner toast notification when new stages are reached (`STAGE X — SHADOW COUNT INCREASED!`).
-- **Storage & High Scores (`SaveManager`)**:
-  - Safe `localStorage` persistence layer with in-memory fallback for non-browser/test environments.
-  - Tracks all-time best score, longest survival duration, and most orbs collected.
-  - Best score displayed on the Main Menu and Game Over screen.
-- **Upgraded HUD & Game Over Screens (`GameScene`, `GameOverScene`, `MenuScene`)**:
-  - Top-left: Live total score, orbs collected, and active combo indicator with countdown %.
-  - Top-center: Formatted survival time (`mm:ss.t`) and stage notification banners.
-  - Top-right: Active vs target Shadow status icons (`● ● ◐ ○ ○`) and live Dash cooldown gauge.
-  - Game Over summary: Final score, survival time, orbs collected, max combo, echoes faced, all-time best, and `★ NEW BEST SCORE ★` / `(NEW!)` badges.
-- **Clean Run Reset**:
-  - Restarting a run resets all M02 temporary systems (score, combo, stage, orbs, active shadows, recording buffer) while preserving high scores.
+- **Main Menu Upgrade (`MenuScene`)**:
+  - Added interactive `HOW TO PLAY` button transitioning to step-by-step tutorial.
+  - Added persistent audio sound toggle button (🔊 / 🔇) linked with `AudioSystem`.
+  - Display of all-time Best Score, longest survival duration, and most orbs collected.
+  - Cyber-neon styled buttons with sound and visual hover/press feedback.
+- **Tutorial & How-To-Play System (`TutorialScene`)**:
+  - 5-step visual guide explaining movement (desktop & mobile), jumping (with coyote time & jump buffering), directional dashing, the core Shadow delayed-recording mechanic, and Energy Orb combo scaling.
+  - Interactive navigation (PREV, NEXT, MAIN MENU, PLAY NOW) and full keyboard navigation.
+- **Pause & Resume System (`PauseScene`)**:
+  - Accessible via `ESC` or `P` on desktop, or the on-screen `⏸` button on mobile.
+  - Suspends physics, active timers, recording, difficulty progression, and audio without desynchronizing elapsed gameplay timestamps.
+  - Modal overlay with `RESUME`, `RESTART`, and `MAIN MENU` actions.
+- **Unified Input Architecture & Mobile Controls (`InputSystem` & `MobileControls`)**:
+  - Unified input state abstraction handling both desktop keyboard and on-screen touch controls simultaneously.
+  - Semi-transparent, responsive on-screen touch controls: Left D-Pad (`◀`, `▶`), Action Buttons (`▲` Jump, `⚡` Dash), and `⏸` Pause.
+  - Full multi-touch support with press-and-hold movement and simultaneous jump/dash.
+  - Added CSS `touch-action: manipulation` and portrait orientation warning banner (`Rotate device to landscape for best experience`).
+- **Game Feel & Procedural Particle Effects (`ParticleEffects`)**:
+  - Dynamic running dust trails, jump puffs, landing impact particles, and dash ghost streaks.
+  - Screen shake and burst explosion on player death with hit-stop pause before transitioning to Game Over.
+  - Floating combo popups (`+150 (x1.5)`) and stage transition banner announcements.
+- **Self-Contained Audio System (`AudioSystem`)**:
+  - Procedural Web Audio API sound synthesizer with zero external asset dependencies.
+  - Custom sound effects: `menuClick`, `jump`, `land`, `dash`, pitch-scaling `orbCollect`, `shadowWarning` glitch rumble, `stageIncrease` fanfare, and `death` explosion.
+  - Handles browser autoplay policy by unlocking on first user interaction.
+  - Persistent mute preference synchronized via `SaveManager`.
+- **CI/CD & GitHub Pages Deployment (`.github/workflows/deploy-pages.yml`)**:
+  - Automated GitHub Actions workflow on push to `main`.
+  - Runs clean install (`npm ci`), TypeScript typecheck, Vitest unit test suite, Vite production build, and deploys `dist/` to GitHub Pages.
+  - Configured relative base paths in `vite.config.ts` ensuring clean asset loading on sub-paths (`/Shadow-Runner/`).
+- **Professional Project Documentation (`README.md`)**:
+  - Comprehensive overview, live demo badge/link, controls, architecture, tech stack, and local development setup instructions.
 
 ## Architecture
 ```text
 shadow-runner/
+├── .github/
+│   └── workflows/
+│       └── deploy-pages.yml
 ├── public/
 │   └── assets/
 ├── src/
 │   ├── main.ts
+│   ├── effects/
+│   │   └── Particles.ts
+│   ├── entities/
+│   │   ├── EnergyOrb.ts
+│   │   ├── Player.ts
+│   │   └── Shadow.ts
 │   ├── game/
 │   │   ├── config.ts
 │   │   └── constants.ts
 │   ├── scenes/
 │   │   ├── BootScene.ts
-│   │   ├── MenuScene.ts
+│   │   ├── GameOverScene.ts
 │   │   ├── GameScene.ts
-│   │   └── GameOverScene.ts
-│   ├── entities/
-│   │   ├── Player.ts
-│   │   ├── Shadow.ts
-│   │   └── EnergyOrb.ts
-│   ├── systems/
-│   │   ├── InputSystem.ts
-│   │   ├── RecordingSystem.ts
-│   │   ├── ShadowPlaybackSystem.ts
-│   │   ├── SpawnSystem.ts
-│   │   ├── ScoreSystem.ts
-│   │   └── DifficultySystem.ts
+│   │   ├── MenuScene.ts
+│   │   ├── PauseScene.ts
+│   │   └── TutorialScene.ts
 │   ├── storage/
 │   │   └── SaveManager.ts
-│   ├── world/
-│   │   ├── Arena.ts
-│   │   └── SpawnPoints.ts
+│   ├── styles/
+│   │   └── style.css
+│   ├── systems/
+│   │   ├── AudioSystem.ts
+│   │   ├── DifficultySystem.ts
+│   │   ├── InputSystem.ts
+│   │   ├── RecordingSystem.ts
+│   │   ├── ScoreSystem.ts
+│   │   ├── ShadowPlaybackSystem.ts
+│   │   └── SpawnSystem.ts
 │   ├── types/
 │   │   └── PlayerSnapshot.ts
-│   └── styles/
-│       └── style.css
+│   ├── ui/
+│   │   └── MobileControls.ts
+│   └── world/
+│       ├── Arena.ts
+│       └── SpawnPoints.ts
 ├── tests/
-│   ├── systems.test.ts
-│   └── gameplay.test.ts
+│   ├── gameplay.test.ts
+│   ├── m03.test.ts
+│   └── systems.test.ts
 ├── index.html
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
+├── README.md
 └── STATUS.md
 ```
 
 ## Verification
-- **Automated Tests**: 21 unit tests passing across `tests/systems.test.ts` and `tests/gameplay.test.ts` covering snapshot recording, multi-shadow delays and states, difficulty stage boundaries, score calculation, combo progression & timeout, safe spawn point selection, and save record persistence.
-- **Type Checking**: TypeScript compiler check (`tsc --noEmit`) passes with 0 errors in strict mode.
-- **Production Build**: Vite builds production bundle cleanly to `dist/` without errors or chunk warnings.
+- **Automated Tests**: 26 unit tests passing across 3 test suites (`tests/systems.test.ts`, `tests/gameplay.test.ts`, `tests/m03.test.ts`).
+- **TypeScript Typecheck**: `tsc --noEmit` passes with 0 errors in strict mode.
+- **Production Build**: Vite builds production bundle cleanly to `dist/` with relative asset resolution.
+- **GitHub Actions CI**: Pipeline executes `npm ci`, `typecheck`, `npm test`, and `build` successfully in the GitHub runner environment.
 
 ## Tests / Commands Run
 - `npm run typecheck` (exit 0, 0 errors)
-- `npm test` (exit 0, 21 unit tests passed across 2 test suites)
-- `npm run build` (exit 0, production bundle created in 3.01s)
+- `npm test` (exit 0, 26 unit tests passed)
+- `npm run build` (exit 0, production bundle built in 2.91s)
+- `git push -u origin main` (exit 0, branch tracking `origin/main`)
+
+## Browser / Mobile Verification
+- Canvas scales responsively with FIT scaling mode and auto-centering.
+- Touch action configured to prevent gesture zoom/scrolling interference during gameplay.
+- Portrait detection displays non-blocking rotation guidance.
+- Sound effects synthesize smoothly on Web Audio API upon first user interaction without console errors.
+
+## Deployment
+- **Repository**: `https://github.com/3bud-ZC/Shadow-Runner`
+- **Branch**: `main`
+- **Pushed Commit SHA**: `582d38af7e8e194d5633413a44ef50c1ac69827f`
+- **GitHub Pages URL**: `https://3bud-zc.github.io/Shadow-Runner/`
+- **GitHub Actions Run**: `https://github.com/3bud-ZC/Shadow-Runner/actions/runs/33511078332` (Build, Typecheck, and Tests all completed successfully).
+
+## Live URL
+`https://3bud-zc.github.io/Shadow-Runner/`
 
 ## Known Issues
-- None.
+- GitHub Pages deployment activation: In the repository settings on GitHub (`Settings -> Pages -> Build and deployment -> Source`), select **GitHub Actions**. The automated deployment workflow will then immediately publish the build to the live URL.
 
 ## Human Verification Needed
-- Manual visual and gameplay feel check in browser (`npm run dev` or `npm run preview`):
-  - Collecting Orbs around the arena and verifying combo multiplier acceleration.
-  - Observing progressive introduction of up to 5 Shadows at 0s, 15s, 30s, 50s, 75s.
-  - Checking visual differentiation between multiple historical Shadows.
-  - Confirming high score persistence in browser `localStorage` across page reloads.
+- Manual gameplay testing in browser on both desktop and mobile viewports to verify touch responsiveness, jump feel, audio volume balance, and pause menu interactions.
 
 ## Next Milestone
-M03 — UX, Mobile & Game Feel
+M04 — Advanced Gameplay & Polish
 
 ## Git State
-- Branch: `master`
-- Untracked files ready for initial commit: `.gitignore`, `package.json`, `package-lock.json`, `tsconfig.json`, `vite.config.ts`, `index.html`, `public/`, `src/`, `tests/`, `STATUS.md`.
+- Branch: `main`
+- Remote: `origin = https://github.com/3bud-ZC/Shadow-Runner.git`
+- Tracking: `origin/main`
+- Clean working directory (all files committed and synced).
