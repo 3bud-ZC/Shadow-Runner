@@ -4,6 +4,7 @@ import { InputState } from '../systems/InputSystem';
 import { PlayerSnapshot } from '../types/PlayerSnapshot';
 import { CartoonRenderer } from '../render/CartoonRenderer';
 import { ParticleEffects } from '../effects/Particles';
+import { AudioSystem } from '../systems/AudioSystem';
 
 export class Player extends Phaser.GameObjects.Container {
   public declare body: Phaser.Physics.Arcade.Body;
@@ -20,6 +21,12 @@ export class Player extends Phaser.GameObjects.Container {
 
   private wasGroundedLastFrame: boolean = true;
   private headbandAngle: number = 0;
+
+  // New Cartoon Ninja Abilities & Reactions
+  private canDoubleJump: boolean = true;
+  private isWallSliding: boolean = false;
+  private isScared: boolean = false;
+  private isFlipping: boolean = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
@@ -52,7 +59,9 @@ export class Player extends Phaser.GameObjects.Container {
       this.body.velocity.y,
       this.headbandAngle,
       animTime,
-      this.isDead
+      this.isDead,
+      this.isScared,
+      this.isWallSliding
     );
   }
 
@@ -66,6 +75,8 @@ export class Player extends Phaser.GameObjects.Container {
     const isGrounded = Boolean(this.body.blocked.down || this.body.touching.down);
     if (isGrounded) {
       this.lastGroundedTime = time;
+      this.canDoubleJump = true;
+      this.isWallSliding = false;
     }
 
     // Landing Squash & Stretch detection
@@ -74,6 +85,20 @@ export class Player extends Phaser.GameObjects.Container {
       ParticleEffects.createLandImpact(this.scene, this.x, this.y + PHYSICS_CONFIG.HITBOX_HEIGHT / 2);
     }
     this.wasGroundedLastFrame = isGrounded;
+
+    // --- WALL SLIDE DETECTION ---
+    const isTouchingWall = (this.body.blocked.left || this.body.blocked.right) && !isGrounded;
+    if (isTouchingWall && this.body.velocity.y > 0) {
+      this.isWallSliding = true;
+      // Cap downward slide velocity for slow ninja glide
+      this.body.setVelocityY(Math.min(this.body.velocity.y, 110));
+
+      if (Math.random() < 0.25) {
+        ParticleEffects.createRunDust(this.scene, this.x, this.y, this.body.blocked.left ? 'left' : 'right');
+      }
+    } else {
+      this.isWallSliding = false;
+    }
 
     // Handle Dash Trigger
     if (input.dashPressed && time - this.lastDashTime >= PHYSICS_CONFIG.DASH_COOLDOWN_MS && !this.isDashing) {
@@ -93,12 +118,25 @@ export class Player extends Phaser.GameObjects.Container {
       }
     }
 
-    // Buffer jump input
+    // --- JUMP LOGIC (Ground, Wall Jump, and Double Jump) ---
     if (input.jumpPressed) {
       this.lastJumpPressTime = time;
+
+      // 1. Wall Jump
+      if (this.isWallSliding) {
+        this.executeWallJump();
+        return;
+      }
+
+      // 2. Double Jump (in air when coyote time has expired)
+      const inCoyoteTime = (time - this.lastGroundedTime <= PHYSICS_CONFIG.COYOTE_TIME_MS);
+      if (!inCoyoteTime && this.canDoubleJump && !isGrounded) {
+        this.executeDoubleJump();
+        return;
+      }
     }
 
-    // Check jump with Coyote time & Jump Buffer
+    // Standard Ground Jump with Coyote time & Jump Buffer
     const canJump = (time - this.lastGroundedTime <= PHYSICS_CONFIG.COYOTE_TIME_MS);
     const wantsJump = (time - this.lastJumpPressTime <= PHYSICS_CONFIG.JUMP_BUFFER_MS);
 
@@ -119,7 +157,6 @@ export class Player extends Phaser.GameObjects.Container {
         this.body.setVelocityX(Math.sign(this.body.velocity.x) * PHYSICS_CONFIG.PLAYER_SPEED);
       }
 
-      // Trailing dust while running
       if (isGrounded && Math.random() < 0.25) {
         ParticleEffects.createRunDust(this.scene, this.x, this.y + PHYSICS_CONFIG.HITBOX_HEIGHT / 2, this.facing);
       }
@@ -128,7 +165,7 @@ export class Player extends Phaser.GameObjects.Container {
       this.body.setDragX(PHYSICS_CONFIG.PLAYER_DECEL);
     }
 
-    // Dynamic Headband sway based on horizontal acceleration & air velocity
+    // Dynamic Headband sway
     const targetHeadband = -(this.body.velocity.x * 0.015);
     this.headbandAngle += (targetHeadband - this.headbandAngle) * 0.2;
 
@@ -140,7 +177,6 @@ export class Player extends Phaser.GameObjects.Container {
     this.lastJumpPressTime = -Infinity;
     this.lastGroundedTime = -Infinity;
 
-    // Cartoon Jump Stretch
     this.scene.tweens.killTweensOf(this);
     this.setScale(0.82, 1.28);
     this.scene.tweens.add({
@@ -152,6 +188,64 @@ export class Player extends Phaser.GameObjects.Container {
     });
 
     ParticleEffects.createJumpPuff(this.scene, this.x, this.y + PHYSICS_CONFIG.HITBOX_HEIGHT / 2);
+  }
+
+  private executeDoubleJump(): void {
+    this.canDoubleJump = false;
+    this.body.setVelocityY(PHYSICS_CONFIG.PLAYER_JUMP_VELOCITY * 0.95);
+    this.lastJumpPressTime = -Infinity;
+
+    // 360-degree Cartoon Front Flip!
+    if (!this.isFlipping) {
+      this.isFlipping = true;
+      const flipDir = this.facing === 'right' ? 1 : -1;
+      this.scene.tweens.add({
+        targets: this,
+        rotation: flipDir * Math.PI * 2,
+        duration: 260,
+        ease: 'Cubic.easeOut',
+        onComplete: () => {
+          this.setRotation(0);
+          this.isFlipping = false;
+        },
+      });
+    }
+
+    AudioSystem.getInstance().playDoubleJump();
+    ParticleEffects.createJumpPuff(this.scene, this.x, this.y);
+    ParticleEffects.createComicPopup(this.scene, this.x, this.y - 30, 'FLIP!', 0x00f0ff);
+  }
+
+  private executeWallJump(): void {
+    const wallDir = this.body.blocked.left ? 1 : -1;
+    this.facing = wallDir > 0 ? 'right' : 'left';
+    this.body.setVelocityX(wallDir * 360);
+    this.body.setVelocityY(-580);
+    this.canDoubleJump = true;
+    this.lastJumpPressTime = -Infinity;
+
+    AudioSystem.getInstance().playWallJump();
+    ParticleEffects.createJumpPuff(this.scene, this.x, this.y);
+    ParticleEffects.createComicPopup(this.scene, this.x, this.y - 30, 'WALL KICK!', 0xffbe0b);
+  }
+
+  public launchSuperBounce(): void {
+    this.body.setVelocityY(-850);
+    this.canDoubleJump = true;
+
+    this.scene.tweens.killTweensOf(this);
+    this.setScale(0.7, 1.45);
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 220,
+      ease: 'Back.easeOut',
+    });
+
+    AudioSystem.getInstance().playSpringBounce();
+    ParticleEffects.createJumpPuff(this.scene, this.x, this.y + 15);
+    ParticleEffects.createComicPopup(this.scene, this.x, this.y - 35, 'SUPER BOING!', 0xff0054);
   }
 
   private triggerLandSquash(): void {
@@ -175,11 +269,9 @@ export class Player extends Phaser.GameObjects.Container {
     this.body.setAllowGravity(false);
     this.body.setVelocityY(0);
 
-    // Cartoon Smoke Bomb Explosion at dash start
     ParticleEffects.createSmokeBomb(this.scene, this.x, this.y);
     ParticleEffects.createComicPopup(this.scene, this.x, this.y - 28, 'POOF!');
 
-    // Squash into bullet shape during dash
     this.setScale(1.3, 0.75);
   }
 
@@ -188,7 +280,6 @@ export class Player extends Phaser.GameObjects.Container {
     this.body.setAllowGravity(true);
     this.body.setVelocityX(this.dashDirection * PHYSICS_CONFIG.PLAYER_SPEED);
 
-    // Spring back to normal scale
     this.scene.tweens.add({
       targets: this,
       scaleX: 1,
@@ -221,6 +312,18 @@ export class Player extends Phaser.GameObjects.Container {
     });
   }
 
+  public setScared(scared: boolean): void {
+    this.isScared = scared;
+  }
+
+  public getCanDoubleJump(): boolean {
+    return this.canDoubleJump;
+  }
+
+  public getIsWallSliding(): boolean {
+    return this.isWallSliding;
+  }
+
   public getSnapshotData(): Omit<PlayerSnapshot, 'timestamp'> {
     const isGrounded = Boolean(this.body.blocked.down || this.body.touching.down);
     return {
@@ -251,14 +354,10 @@ export class Player extends Phaser.GameObjects.Container {
   }
 
   private createCartoonDeath(): void {
-    // 1. Comic text "BAM!" or "SPLAT!"
     ParticleEffects.createComicPopup(this.scene, this.x, this.y - 35, 'SPLAT!', 0xff0055);
-
-    // 2. Ink splatter burst & stars
     ParticleEffects.createInkSplatter(this.scene, this.x, this.y);
     ParticleEffects.createComicStars(this.scene, this.x, this.y);
 
-    // 3. Ascending cartoon ghost ninja
     const ghost = this.scene.add.graphics();
     ghost.setPosition(this.x, this.y);
     ghost.fillStyle(COLORS.CARTOON_WHITE, 0.7);
@@ -267,7 +366,6 @@ export class Player extends Phaser.GameObjects.Container {
     ghost.strokeCircle(0, -10, 10);
     ghost.fillRoundedRect(-8, -4, 16, 18, 4);
     ghost.strokeRoundedRect(-8, -4, 16, 18, 4);
-    // Ghost little wings / halo
     ghost.lineStyle(2, COLORS.CARTOON_HEADBAND, 0.9);
     ghost.strokeCircle(0, -22, 6);
     ghost.setDepth(25);

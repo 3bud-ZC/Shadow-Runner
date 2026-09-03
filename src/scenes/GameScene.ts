@@ -16,6 +16,7 @@ import { SaveManager } from '../storage/SaveManager';
 import { AudioSystem } from '../systems/AudioSystem';
 import { MobileControls } from '../ui/MobileControls';
 import { ParticleEffects } from '../effects/Particles';
+import { BananaPowerUp } from '../entities/PowerUp';
 
 export class GameScene extends Phaser.Scene {
   private arena!: Arena;
@@ -23,6 +24,9 @@ export class GameScene extends Phaser.Scene {
   private shadows: Shadow[] = [];
   private collapseShadow!: CollapseShadow;
   private energyOrb!: EnergyOrb;
+  private activeBanana: BananaPowerUp | null = null;
+  private nextBananaSpawnTime: number = 8000;
+  private lastCloseCallTime: number = 0;
 
   private inputSystem!: InputSystem;
   private mobileControls!: MobileControls;
@@ -135,10 +139,21 @@ export class GameScene extends Phaser.Scene {
       this
     );
 
-    // 9. Create HUD
+    // Player vs Trampoline Bounce Pads
+    this.physics.add.overlap(this.player, this.arena.bouncePads, (_player, pad) => {
+      if (this.player.body.velocity.y > 0) {
+        this.arena.triggerPadBounce(pad as Phaser.GameObjects.Zone);
+        this.player.launchSuperBounce();
+      }
+    });
+
+    // 9. Start Procedural Ragtime Jazz BGM
+    AudioSystem.getInstance().startJazzBGM();
+
+    // 10. Create HUD
     this.createHUD();
 
-    // 10. Pause and Resume Event Listeners
+    // 11. Pause and Resume Event Listeners
     this.events.on(Phaser.Scenes.Events.PAUSE, this.handleScenePause, this);
     this.events.on(Phaser.Scenes.Events.RESUME, this.handleSceneResume, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
@@ -148,6 +163,7 @@ export class GameScene extends Phaser.Scene {
     this.isPaused = true;
     this.pauseTimestamp = this.time.now;
     this.physics.pause();
+    AudioSystem.getInstance().stopJazzBGM();
   }
 
   private handleSceneResume(): void {
@@ -156,6 +172,7 @@ export class GameScene extends Phaser.Scene {
       this.startTimeMs += pauseDuration;
       this.isPaused = false;
       this.physics.resume();
+      AudioSystem.getInstance().startJazzBGM();
     }
   }
 
@@ -362,10 +379,64 @@ export class GameScene extends Phaser.Scene {
     // 8. Update Score System
     this.scoreSystem.update(this.elapsedTimeMs, diff.comboTimeoutMs);
 
-    // 9. Update Collectible Animation
+    // 9. Update Collectible & Arena Animations
     this.energyOrb.update();
+    this.arena.update();
 
-    // 10. Update HUD Displays
+    // 10. Update Ragtime Jazz BGM tempo
+    AudioSystem.getInstance().setBGMTempo(1.0 + (diff.stage - 1) * 0.08);
+
+    // 11. Banana Power-Up Spawning & Interaction
+    if (this.time.now >= this.nextBananaSpawnTime && !this.activeBanana) {
+      const spawnSpots = [
+        { x: 260, y: 530 },
+        { x: 1020, y: 530 },
+        { x: 640, y: 400 },
+      ];
+      const spot = spawnSpots[Math.floor(Math.random() * spawnSpots.length)];
+      this.activeBanana = new BananaPowerUp(this, spot.x, spot.y);
+      this.nextBananaSpawnTime = this.time.now + 18000;
+    }
+
+    if (this.activeBanana) {
+      this.activeBanana.update();
+      for (const shadow of this.shadows) {
+        if (shadow.isShadowActive() && this.activeBanana && !this.activeBanana.getIsUsed()) {
+          const d = Phaser.Math.Distance.Between(shadow.x, shadow.y, this.activeBanana.x, this.activeBanana.y);
+          if (d < 30) {
+            this.activeBanana.tripShadow(shadow);
+            this.activeBanana = null;
+            break;
+          }
+        }
+      }
+    }
+
+    // 12. Dynamic Proximity Reactions (Scared Face & Close-Call Bonus)
+    let minShadowDist = Infinity;
+    for (const shadow of this.shadows) {
+      if (shadow.isShadowActive()) {
+        const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, shadow.x, shadow.y);
+        if (d < minShadowDist) minShadowDist = d;
+      }
+    }
+    if (this.collapseShadow.getIsDangerous()) {
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.collapseShadow.x, this.collapseShadow.y);
+      if (d < minShadowDist) minShadowDist = d;
+    }
+
+    // Bugged-out eyes when shadow is dangerously close!
+    this.player.setScared(minShadowDist < 85);
+
+    // Comic "CLOSE CALL! +50" Near-Miss Bonus
+    if (minShadowDist < 52 && minShadowDist > 32 && this.time.now - this.lastCloseCallTime > 3500) {
+      this.lastCloseCallTime = this.time.now;
+      this.scoreSystem.addBonusScore(50);
+      ParticleEffects.createComicPopup(this, this.player.x, this.player.y - 42, 'CLOSE CALL! +50', 0xffbe0b);
+      AudioSystem.getInstance().playMenuClick();
+    }
+
+    // 13. Update HUD Displays
     this.updateHUD(diff.targetShadowCount, collapseResult.isActive);
   }
 
@@ -545,6 +616,9 @@ export class GameScene extends Phaser.Scene {
     this.isGameOver = true;
     const settings = SaveManager.getSettings();
 
+    // Stop Jazz BGM on death
+    AudioSystem.getInstance().stopJazzBGM();
+
     // Death Audio & Feedback
     AudioSystem.getInstance().playDeath();
     if (settings.screenShake && !settings.reducedMotion) {
@@ -578,6 +652,12 @@ export class GameScene extends Phaser.Scene {
   private cleanup(): void {
     this.events.off(Phaser.Scenes.Events.PAUSE, this.handleScenePause, this);
     this.events.off(Phaser.Scenes.Events.RESUME, this.handleSceneResume, this);
+
+    AudioSystem.getInstance().stopJazzBGM();
+    if (this.activeBanana) {
+      this.activeBanana.destroy();
+      this.activeBanana = null;
+    }
 
     if (this.inputSystem) this.inputSystem.destroy();
     if (this.mobileControls) this.mobileControls.destroy();

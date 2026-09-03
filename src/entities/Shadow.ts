@@ -11,6 +11,7 @@ export class Shadow extends Phaser.GameObjects.Container {
   private shadowState: ShadowState = ShadowState.DORMANT;
   private facing: 'left' | 'right' = 'right';
   private trailTimer: number = 0;
+  private isSlipped: boolean = false;
 
   private shadowIndex: number;
   private coreColor: number;
@@ -119,8 +120,30 @@ export class Shadow extends Phaser.GameObjects.Container {
       this.shadowIndex,
       this.baseAlpha,
       this.glowColor,
-      this.scene.time.now
+      this.scene.time.now,
+      this.isSlipped
     );
+  }
+
+  public tripOnBanana(): void {
+    if (this.isSlipped) return;
+    this.isSlipped = true;
+    this.body.enable = false;
+
+    // 3-second dizzy spin
+    this.scene.tweens.add({
+      targets: this,
+      rotation: Math.PI * 6,
+      duration: 2800,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        this.setRotation(0);
+        this.isSlipped = false;
+        if (this.shadowState === ShadowState.ACTIVE) {
+          this.body.enable = true;
+        }
+      },
+    });
   }
 
   private emitShadowEcho(): void {

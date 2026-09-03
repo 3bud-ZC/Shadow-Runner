@@ -18,12 +18,11 @@ export interface GameOverData {
 export class GameOverScene extends Phaser.Scene {
   private gameOverData: GameOverData = {};
 
-  private readonly deathMessages = [
-    'YOUR PAST CAUGHT UP WITH YOU.',
-    'YOU CREATED THAT.',
-    'EVERY MOVE HAS CONSEQUENCES.',
-    'OUTRUNNING YOURSELF IS HARD.',
-    'THE ECHO WON THIS ROUND.',
+  private readonly deathHeadlines = [
+    'SHINOBI CAUGHT BY HIS OWN PAST!',
+    'INK ECHO CLAIMS ANOTHER ROUND!',
+    'OUTRUNNING YOURSELF PROVES FATAL!',
+    'THE INK WINS THIS CARTOON BATTLE!',
   ];
 
   constructor() {
@@ -43,238 +42,225 @@ export class GameOverScene extends Phaser.Scene {
     const orbs = this.gameOverData.orbs || 0;
     const maxCombo = this.gameOverData.maxCombo || 1.0;
     const maxShadows = this.gameOverData.maxShadows || 1;
-    const highestStage = this.gameOverData.highestStage || 1;
-    const collapseReached = Boolean(this.gameOverData.memoryCollapseReached);
-    const collapseSurvived = Boolean(this.gameOverData.memoryCollapseSurvived);
     const recordResult = this.gameOverData.recordResult;
     const bestScore = recordResult?.currentSave.bestScore || score;
 
-    // Dark semi-transparent overlay
+    // 1. Dark vintage background overlay
     const overlay = this.add.graphics();
-    overlay.fillStyle(0x05070c, 0.94);
+    overlay.fillStyle(0x090a10, 0.92);
     overlay.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-    // Red cyber grid lines
-    overlay.lineStyle(1, 0x3d0c1e, 0.35);
-    for (let x = 0; x <= GAME_WIDTH; x += 40) {
-      overlay.lineBetween(x, 0, x, GAME_HEIGHT);
-    }
-    for (let y = 0; y <= GAME_HEIGHT; y += 40) {
-      overlay.lineBetween(0, y, GAME_WIDTH, y);
-    }
+    // 2. THE DAILY TOON NEWSPAPER CONTAINER
+    const newspaper = this.add.container(cx, cy);
+    newspaper.setScale(0.1);
+    newspaper.setRotation(-Math.PI * 3);
 
-    // Title: CAUGHT BY YOUR SHADOW
-    const title = this.add.text(cx, cy - 195, 'CAUGHT BY YOUR SHADOW', {
-      fontFamily: 'Orbitron, Rajdhani, sans-serif',
-      fontSize: '38px',
-      fontStyle: 'bold',
-      color: COLORS.TEXT_RED,
-      align: 'center',
-    }).setOrigin(0.5);
-
-    // Title pulse tween
+    // Spinning Newspaper intro tween
     this.tweens.add({
-      targets: title,
-      alpha: { from: 0.85, to: 1 },
-      scaleX: { from: 0.99, to: 1.01 },
-      duration: 120,
-      yoyo: true,
-      repeat: -1,
+      targets: newspaper,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      duration: 550,
+      ease: 'Back.easeOut',
     });
 
-    // Dynamic Contextual Death Message
-    const msgIndex = Math.floor(Math.random() * this.deathMessages.length);
-    this.add.text(cx, cy - 155, `"${this.deathMessages[msgIndex]}"`, {
-      fontFamily: 'Orbitron, sans-serif',
-      fontSize: '14px',
-      color: COLORS.TEXT_GOLD,
+    // Newspaper page graphics
+    const paperW = 720;
+    const paperH = 500;
+    const paper = this.add.graphics();
+
+    // Vintage newsprint paper
+    paper.fillStyle(COLORS.CARTOON_PARCHMENT_BG, 1);
+    paper.fillRoundedRect(-paperW / 2, -paperH / 2, paperW, paperH, 6);
+    paper.lineStyle(4, 0x090a10, 1);
+    paper.strokeRoundedRect(-paperW / 2, -paperH / 2, paperW, paperH, 6);
+
+    // Newspaper Masthead banner
+    paper.lineStyle(2, 0x090a10, 1);
+    paper.lineBetween(-paperW / 2 + 15, -paperH / 2 + 70, paperW / 2 - 15, -paperH / 2 + 70);
+    paper.lineBetween(-paperW / 2 + 15, -paperH / 2 + 75, paperW / 2 - 15, -paperH / 2 + 75);
+
+    newspaper.add(paper);
+
+    // Masthead text: "THE DAILY TOON"
+    const masthead = this.add.text(0, -paperH / 2 + 35, '★ THE DAILY TOON ★', {
+      fontFamily: 'Impact, Georgia, serif',
+      fontSize: '44px',
+      color: '#090a10',
+      letterSpacing: 4,
+      align: 'center',
+    }).setOrigin(0.5);
+    newspaper.add(masthead);
+
+    // Sub-banner
+    const edition = this.add.text(0, -paperH / 2 + 86, 'FINAL EDITION — SPECIAL DISPATCH FROM THE DOJO', {
+      fontFamily: 'Georgia, serif',
+      fontSize: '11px',
+      fontStyle: 'italic',
+      color: '#4a4e69',
       letterSpacing: 2,
     }).setOrigin(0.5);
+    newspaper.add(edition);
 
-    // Stats Container Panel
-    const panelBg = this.add.graphics();
-    const panelW = 660;
-    const panelH = 220;
-    const panelY = cy - 20;
-    panelBg.fillStyle(0x0a101d, 0.92);
-    panelBg.fillRoundedRect(cx - panelW / 2, panelY - panelH / 2, panelW, panelH, 8);
-    panelBg.lineStyle(1.5, 0x1f2a44, 0.9);
-    panelBg.strokeRoundedRect(cx - panelW / 2, panelY - panelH / 2, panelW, panelH, 8);
+    // Headline: "EXTRA! EXTRA! ..."
+    const headlineText = this.deathHeadlines[Math.floor(Math.random() * this.deathHeadlines.length)];
+    const headline = this.add.text(0, -paperH / 2 + 122, `EXTRA! EXTRA!\n${headlineText}`, {
+      fontFamily: 'Impact, Georgia, sans-serif',
+      fontSize: '26px',
+      color: '#d90429',
+      align: 'center',
+      lineSpacing: 4,
+    }).setOrigin(0.5);
+    newspaper.add(headline);
 
-    // New Best Banner if achieved
-    if (recordResult?.isNewBestScore) {
-      const newBestBadge = this.add.text(cx, panelY - panelH / 2 - 16, '★ NEW BEST SCORE ★', {
+    // Stats Grid inside newspaper columns
+    const statsBox = this.add.graphics();
+    statsBox.fillStyle(0x191624, 0.06);
+    statsBox.fillRoundedRect(-paperW / 2 + 30, -paperH / 2 + 175, paperW - 60, 185, 4);
+    statsBox.lineStyle(1.5, 0x090a10, 0.4);
+    statsBox.strokeRoundedRect(-paperW / 2 + 30, -paperH / 2 + 175, paperW - 60, 185, 4);
+    newspaper.add(statsBox);
+
+    const timeSec = (survivalTimeMs / 1000).toFixed(1);
+
+    const statsText = this.add.text(
+      0,
+      -paperH / 2 + 230,
+      `RUN SCORE: ${score.toLocaleString()} PTS\nSURVIVAL TIME: ${timeSec} SECONDS\nSCROLLS COLLECTED: ${orbs}\nMAX COMBO: x${maxCombo.toFixed(1)}\nACTIVE SHADOWS: ${maxShadows}`,
+      {
+        fontFamily: 'Georgia, monospace',
+        fontSize: '18px',
+        fontStyle: 'bold',
+        color: '#090a10',
+        lineSpacing: 8,
+        align: 'center',
+      }
+    ).setOrigin(0.5);
+    newspaper.add(statsText);
+
+    // High Score Badge
+    const bestText = this.add.text(
+      0,
+      -paperH / 2 + 335,
+      `ALL-TIME BEST: ${bestScore.toLocaleString()} PTS`,
+      {
         fontFamily: 'Orbitron, sans-serif',
         fontSize: '14px',
         fontStyle: 'bold',
-        color: COLORS.TEXT_GOLD,
-        backgroundColor: '#3d2800',
-        padding: { x: 12, y: 4 },
+        color: '#d90429',
+        letterSpacing: 2,
+      }
+    ).setOrigin(0.5);
+    newspaper.add(bestText);
+
+    // "NEW RECORD!" Ink Stamp if beaten
+    if (recordResult?.isNewBestScore) {
+      const stamp = this.add.container(paperW / 2 - 110, -paperH / 2 + 220);
+      stamp.setRotation(0.25);
+      const stampBg = this.add.graphics();
+      stampBg.lineStyle(3, 0xd90429, 0.9);
+      stampBg.strokeRect(-65, -20, 130, 40);
+      const stampTxt = this.add.text(0, 0, 'NEW RECORD!', {
+        fontFamily: 'Impact, sans-serif',
+        fontSize: '18px',
+        color: '#d90429',
       }).setOrigin(0.5);
+      stamp.add([stampBg, stampTxt]);
+      newspaper.add(stamp);
 
       this.tweens.add({
-        targets: newBestBadge,
-        scaleX: 1.05,
-        scaleY: 1.05,
+        targets: stamp,
+        scaleX: 1.1,
+        scaleY: 1.1,
         duration: 400,
         yoyo: true,
         repeat: -1,
       });
     }
 
-    // Score & Best
-    this.add.text(cx - 280, panelY - 80, 'FINAL SCORE', {
-      fontFamily: 'Orbitron, sans-serif',
-      fontSize: '13px',
-      color: COLORS.TEXT_MUTED,
-    });
-    this.add.text(cx - 280, panelY - 58, score.toLocaleString(), {
-      fontFamily: 'Orbitron, monospace',
-      fontSize: '26px',
-      fontStyle: 'bold',
-      color: COLORS.TEXT_CYAN,
-    });
-
-    this.add.text(cx + 40, panelY - 80, 'ALL-TIME BEST', {
-      fontFamily: 'Orbitron, sans-serif',
-      fontSize: '13px',
-      color: COLORS.TEXT_MUTED,
-    });
-    this.add.text(cx + 40, panelY - 58, bestScore.toLocaleString(), {
-      fontFamily: 'Orbitron, monospace',
-      fontSize: '26px',
-      fontStyle: 'bold',
-      color: COLORS.TEXT_GOLD,
-    });
-
-    // Secondary stats line
-    const totalSeconds = (survivalTimeMs / 1000).toFixed(2);
-    const timeStr = `${totalSeconds}s${recordResult?.isNewLongestSurvival ? ' (NEW!)' : ''}`;
-    const orbStr = `${orbs}${recordResult?.isNewMostOrbs ? ' (NEW!)' : ''}`;
-
-    let collapseStatus = 'NOT REACHED';
-    let collapseColor = COLORS.TEXT_MUTED;
-    if (collapseSurvived) {
-      collapseStatus = 'SURVIVED (+1000)';
-      collapseColor = COLORS.TEXT_GOLD;
-    } else if (collapseReached) {
-      collapseStatus = 'REACHED';
-      collapseColor = COLORS.TEXT_CYAN;
-    }
-
-    this.add.text(cx - 280, panelY - 10, `TIME SURVIVED: ${timeStr}`, {
-      fontFamily: 'Rajdhani, sans-serif',
-      fontSize: '17px',
-      fontStyle: 'bold',
-      color: '#e2e8f0',
-    });
-
-    this.add.text(cx - 280, panelY + 20, `ORBS COLLECTED: ${orbStr}`, {
-      fontFamily: 'Rajdhani, sans-serif',
-      fontSize: '17px',
-      fontStyle: 'bold',
-      color: '#e2e8f0',
-    });
-
-    this.add.text(cx - 280, panelY + 50, `MAX COMBO: x${maxCombo.toFixed(1)}`, {
-      fontFamily: 'Rajdhani, sans-serif',
-      fontSize: '17px',
-      fontStyle: 'bold',
-      color: '#e2e8f0',
-    });
-
-    this.add.text(cx + 40, panelY - 10, `HIGHEST: STAGE ${highestStage}`, {
-      fontFamily: 'Rajdhani, sans-serif',
-      fontSize: '17px',
-      fontStyle: 'bold',
-      color: '#e2e8f0',
-    });
-
-    this.add.text(cx + 40, panelY + 20, `ECHOES FACED: ${maxShadows} / 5`, {
-      fontFamily: 'Rajdhani, sans-serif',
-      fontSize: '17px',
-      fontStyle: 'bold',
-      color: '#e2e8f0',
-    });
-
-    this.add.text(cx + 40, panelY + 50, `MEMORY COLLAPSE: ${collapseStatus}`, {
-      fontFamily: 'Rajdhani, sans-serif',
-      fontSize: '17px',
-      fontStyle: 'bold',
-      color: collapseColor,
-    });
-
-    // Buttons Row: RETRY, SETTINGS, MAIN MENU
-    const btnY = cy + 130;
-    this.createButton(cx - 180, btnY, 'RETRY', '#00f0ff', 0x00f0ff, () => this.restartGame());
-    this.createButton(cx, btnY, 'SETTINGS', '#94a3b8', 0x00a8b5, () => this.openSettings());
-    this.createButton(cx + 180, btnY, 'MAIN MENU', '#cbd5e1', 0x707e94, () => this.gotoMainMenu());
+    // Interactive Buttons
+    const btnY = paperH / 2 - 60;
+    this.createCartoonButton(newspaper, -190, btnY, '↺ RETRY', '#ffffff', 0xd90429, () => this.restartGame(), true);
+    this.createCartoonButton(newspaper, 0, btnY, '⌂ MENU', '#ffffff', 0x2b2d42, () => this.goToMenu(), false);
+    this.createCartoonButton(newspaper, 190, btnY, '⚙ SETTINGS', '#ffffff', 0x2b2d42, () => this.openSettings(), false);
 
     // Keyboard Shortcuts
     this.input.keyboard?.on('keydown-SPACE', () => this.restartGame());
-    this.input.keyboard?.on('keydown-R', () => this.restartGame());
     this.input.keyboard?.on('keydown-ENTER', () => this.restartGame());
+    this.input.keyboard?.on('keydown-M', () => this.goToMenu());
     this.input.keyboard?.on('keydown-S', () => this.openSettings());
-    this.input.keyboard?.on('keydown-ESC', () => this.gotoMainMenu());
-
-    // Shortcuts hint
-    this.add.text(cx, cy + 195, '[SPACE / R] Retry   |   [S] Settings   |   [ESC] Main Menu', {
-      fontFamily: 'Rajdhani, sans-serif',
-      fontSize: '15px',
-      color: COLORS.TEXT_MUTED,
-    }).setOrigin(0.5);
   }
 
-  private createButton(
+  private createCartoonButton(
+    parent: Phaser.GameObjects.Container,
     x: number,
     y: number,
     label: string,
     textColor: string,
-    borderColor: number,
-    callback: () => void
+    fillColor: number,
+    callback: () => void,
+    isPrimary: boolean = false
   ): void {
-    const btnContainer = this.add.container(x, y);
-    const w = 160;
-    const h = 46;
+    const btn = this.add.container(x, y);
+    const width = 160;
+    const height = 44;
 
     const bg = this.add.graphics();
-    bg.fillStyle(0x0e1320, 0.9);
-    bg.fillRoundedRect(-w / 2, -h / 2, w, h, 6);
-    bg.lineStyle(1.5, borderColor, 0.8);
-    bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 6);
+    bg.fillStyle(fillColor, 1);
+    bg.fillRoundedRect(-width / 2, -height / 2, width, height, 6);
+    bg.lineStyle(2.5, 0x000000, 1);
+    bg.strokeRoundedRect(-width / 2, -height / 2, width, height, 6);
 
     const txt = this.add.text(0, 0, label, {
-      fontFamily: 'Orbitron, sans-serif',
-      fontSize: '16px',
+      fontFamily: 'Orbitron, Impact, sans-serif',
+      fontSize: isPrimary ? '18px' : '15px',
       fontStyle: 'bold',
       color: textColor,
+      stroke: '#000000',
+      strokeThickness: 3,
     }).setOrigin(0.5);
 
-    btnContainer.add([bg, txt]);
-    btnContainer.setSize(w, h);
-    btnContainer.setInteractive({ useHandCursor: true });
+    btn.add([bg, txt]);
+    btn.setSize(width, height);
+    btn.setInteractive({ useHandCursor: true });
 
-    btnContainer.on('pointerover', () => {
-      bg.clear();
-      bg.fillStyle(borderColor, 0.25);
-      bg.fillRoundedRect(-w / 2, -h / 2, w, h, 6);
-      bg.lineStyle(2, 0xffffff, 1);
-      bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 6);
-      txt.setColor('#ffffff');
-      btnContainer.setScale(1.04);
+    btn.on('pointerover', () => {
+      this.tweens.killTweensOf(btn);
+      this.tweens.add({
+        targets: btn,
+        scaleX: 1.06,
+        scaleY: 0.94,
+        duration: 100,
+        ease: 'Sine.easeOut',
+      });
+      AudioSystem.getInstance().playMenuClick();
     });
 
-    btnContainer.on('pointerout', () => {
-      bg.clear();
-      bg.fillStyle(0x0e1320, 0.9);
-      bg.fillRoundedRect(-w / 2, -h / 2, w, h, 6);
-      bg.lineStyle(1.5, borderColor, 0.8);
-      bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 6);
-      txt.setColor(textColor);
-      btnContainer.setScale(1);
+    btn.on('pointerout', () => {
+      this.tweens.killTweensOf(btn);
+      this.tweens.add({
+        targets: btn,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 120,
+        ease: 'Sine.easeOut',
+      });
     });
 
-    btnContainer.on('pointerdown', callback);
+    btn.on('pointerdown', () => {
+      this.tweens.killTweensOf(btn);
+      this.tweens.add({
+        targets: btn,
+        scaleX: 0.92,
+        scaleY: 1.1,
+        duration: 70,
+        yoyo: true,
+        onComplete: () => callback(),
+      });
+    });
+
+    parent.add(btn);
   }
 
   private restartGame(): void {
@@ -282,13 +268,13 @@ export class GameOverScene extends Phaser.Scene {
     this.scene.start('GameScene');
   }
 
-  private openSettings(): void {
-    AudioSystem.getInstance().playMenuClick();
-    this.scene.start('SettingsScene', { returnSceneKey: 'GameOverScene' });
-  }
-
-  private gotoMainMenu(): void {
+  private goToMenu(): void {
     AudioSystem.getInstance().playMenuClick();
     this.scene.start('MenuScene');
+  }
+
+  private openSettings(): void {
+    AudioSystem.getInstance().playMenuClick();
+    this.scene.start('SettingsScene', { returnScene: 'GameOverScene' });
   }
 }
