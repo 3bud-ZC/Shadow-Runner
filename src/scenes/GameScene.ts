@@ -362,7 +362,10 @@ export class GameScene extends Phaser.Scene {
     // 8. Update Score System
     this.scoreSystem.update(this.elapsedTimeMs, diff.comboTimeoutMs);
 
-    // 9. Update HUD Displays
+    // 9. Update Collectible Animation
+    this.energyOrb.update();
+
+    // 10. Update HUD Displays
     this.updateHUD(diff.targetShadowCount, collapseResult.isActive);
   }
 
@@ -450,6 +453,13 @@ export class GameScene extends Phaser.Scene {
 
     // Audio chime
     AudioSystem.getInstance().playOrbCollect(result.comboMultiplier);
+
+    // Comic popup on high combo
+    if (result.comboMultiplier >= 3.0) {
+      ParticleEffects.createComicPopup(this, this.player.x, this.player.y - 45, 'MAX COMBO!', 0xff0054);
+    } else if (result.comboMultiplier >= 2.0) {
+      ParticleEffects.createComicPopup(this, this.player.x, this.player.y - 45, 'COMBO x2!', 0xffbe0b);
+    }
 
     // Floating score popup text
     this.showFloatingText(

@@ -12,8 +12,8 @@ export const PHYSICS_CONFIG = {
   DASH_SPEED: 780,
   DASH_DURATION_MS: 160,
   DASH_COOLDOWN_MS: 1300,
-  HITBOX_WIDTH: 26,
-  HITBOX_HEIGHT: 38,
+  HITBOX_WIDTH: 28,
+  HITBOX_HEIGHT: 40,
 };
 
 export const RECORDING_CONFIG = {
@@ -26,9 +26,9 @@ export const SHADOW_CONFIG = {
   MAX_SHADOWS: 5,
   DELAYS_MS: [5000, 10000, 15000, 20000, 25000],
   WARNING_DURATION_MS: 1500, // 1.5s warning before spawn
-  ALPHAS: [0.85, 0.75, 0.65, 0.55, 0.45],
-  COLORS_CORE: [0xd90429, 0xc77dff, 0xf72585, 0x9e0059, 0xff0054],
-  COLORS_GLOW: [0x9d4edd, 0x7209b7, 0x3a0ca3, 0x7b2cbf, 0x5a189a],
+  ALPHAS: [0.9, 0.82, 0.74, 0.66, 0.58],
+  COLORS_CORE: [0x12131a, 0x1f142b, 0x2b0d1e, 0x101a24, 0x261019],
+  COLORS_GLOW: [0xff0054, 0x9d4edd, 0xff5400, 0x00f0ff, 0xff007f],
 };
 
 export const MEMORY_COLLAPSE_CONFIG = {
@@ -66,8 +66,8 @@ export const SCORE_CONFIG = {
 };
 
 export const ORB_CONFIG = {
-  RADIUS: 12,
-  HITBOX_RADIUS: 18,
+  RADIUS: 14,
+  HITBOX_RADIUS: 20,
   PULSE_DURATION_MS: 800,
 };
 
@@ -88,13 +88,30 @@ export const DEFAULT_SETTINGS: UserSettings = {
 };
 
 export const COLORS = {
-  BG_DARK: 0x07090e,
-  BG_GRID: 0x141a29,
-  PLATFORM_FILL: 0x111625,
-  PLATFORM_STROKE: 0x00f0ff,
-  PLATFORM_TOP: 0x00e5ff,
-  PLAYER_CORE: 0x00f0ff,
-  PLAYER_GLOW: 0x80f7ff,
+  // Classic Cartoon & Ink Palette
+  CARTOON_INK: 0x12131a,
+  CARTOON_WHITE: 0xfdfbf7,
+  CARTOON_HEADBAND: 0xef233c,
+  CARTOON_SKIN: 0xffe3d8,
+  CARTOON_SHADOW_INK: 0x090a10,
+  CARTOON_SHADOW_EYE: 0xff0054,
+  CARTOON_PARCHMENT_BG: 0x13131c,
+  CARTOON_GRID: 0x222233,
+  CARTOON_WOOD: 0x241e30,
+  CARTOON_WOOD_TOP: 0xdda15e,
+  CARTOON_WOOD_STROKE: 0x0b0b12,
+  CARTOON_SCROLL_GOLD: 0xffbe0b,
+  CARTOON_SCROLL_PAPER: 0xfefae0,
+  CARTOON_SCROLL_RED: 0xd90429,
+
+  // Compatibility bindings
+  BG_DARK: 0x13131c,
+  BG_GRID: 0x222233,
+  PLATFORM_FILL: 0x241e30,
+  PLATFORM_STROKE: 0x0b0b12,
+  PLATFORM_TOP: 0xdda15e,
+  PLAYER_CORE: 0x12131a,
+  PLAYER_GLOW: 0xffe3d8,
   SHADOW_CORE: 0xd90429,
   SHADOW_GLOW: 0x9d4edd,
   COLLAPSE_CORE: 0x00f0ff,
@@ -102,10 +119,10 @@ export const COLORS = {
   ORB_CORE: 0xffbe0b,
   ORB_GLOW: 0xfb5607,
   ORB_INNER: 0xffffff,
-  TEXT_WHITE: '#ffffff',
-  TEXT_CYAN: '#00f0ff',
-  TEXT_SHADOW: '#c77dff',
-  TEXT_RED: '#ff0055',
+  TEXT_WHITE: '#fdfbf7',
+  TEXT_CYAN: '#fefae0',
+  TEXT_SHADOW: '#ff758f',
+  TEXT_RED: '#ef233c',
   TEXT_GOLD: '#ffbe0b',
-  TEXT_MUTED: '#707e94',
+  TEXT_MUTED: '#8d99ae',
 };

@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { PHYSICS_CONFIG, COLORS } from '../game/constants';
 import { InputState } from '../systems/InputSystem';
 import { PlayerSnapshot } from '../types/PlayerSnapshot';
+import { CartoonRenderer } from '../render/CartoonRenderer';
+import { ParticleEffects } from '../effects/Particles';
 
 export class Player extends Phaser.GameObjects.Container {
   public declare body: Phaser.Physics.Arcade.Body;
@@ -15,6 +17,9 @@ export class Player extends Phaser.GameObjects.Container {
   private dashEndTime: number = 0;
   private dashDirection: number = 1;
   private isDead: boolean = false;
+
+  private wasGroundedLastFrame: boolean = true;
+  private headbandAngle: number = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
@@ -30,35 +35,25 @@ export class Player extends Phaser.GameObjects.Container {
     this.add(this.graphics);
     this.setDepth(10);
 
-    this.draw();
+    this.draw(0);
   }
 
-  private draw(): void {
-    this.graphics.clear();
-
-    const w = PHYSICS_CONFIG.HITBOX_WIDTH;
-    const h = PHYSICS_CONFIG.HITBOX_HEIGHT;
-    const halfW = w / 2;
-    const halfH = h / 2;
-
+  private draw(animTime: number): void {
     if (this.isDead) return;
 
-    // Outer neon glow
-    this.graphics.lineStyle(2, COLORS.PLAYER_GLOW, 0.6);
-    this.graphics.strokeRoundedRect(-halfW - 2, -halfH - 2, w + 4, h + 4, 4);
+    const isGrounded = Boolean(this.body.blocked.down || this.body.touching.down);
 
-    // Inner player body
-    this.graphics.fillStyle(COLORS.PLAYER_CORE, 1);
-    this.graphics.fillRoundedRect(-halfW, -halfH, w, h, 3);
-
-    // Cyber visor / eye
-    this.graphics.fillStyle(0xffffff, 1);
-    const eyeX = this.facing === 'right' ? 2 : -w / 2 + 2;
-    this.graphics.fillRect(eyeX, -halfH + 6, 8, 5);
-
-    // Core energy center
-    this.graphics.fillStyle(0xffffff, 0.8);
-    this.graphics.fillCircle(0, 2, 4);
+    CartoonRenderer.drawNinja(
+      this.graphics,
+      this.facing,
+      isGrounded,
+      this.isDashing,
+      this.body.velocity.x,
+      this.body.velocity.y,
+      this.headbandAngle,
+      animTime,
+      this.isDead
+    );
   }
 
   public update(time: number, input: InputState): void {
@@ -68,10 +63,17 @@ export class Player extends Phaser.GameObjects.Container {
       return;
     }
 
-    const isGrounded = this.body.blocked.down || this.body.touching.down;
+    const isGrounded = Boolean(this.body.blocked.down || this.body.touching.down);
     if (isGrounded) {
       this.lastGroundedTime = time;
     }
+
+    // Landing Squash & Stretch detection
+    if (!this.wasGroundedLastFrame && isGrounded) {
+      this.triggerLandSquash();
+      ParticleEffects.createLandImpact(this.scene, this.x, this.y + PHYSICS_CONFIG.HITBOX_HEIGHT / 2);
+    }
+    this.wasGroundedLastFrame = isGrounded;
 
     // Handle Dash Trigger
     if (input.dashPressed && time - this.lastDashTime >= PHYSICS_CONFIG.DASH_COOLDOWN_MS && !this.isDashing) {
@@ -86,7 +88,7 @@ export class Player extends Phaser.GameObjects.Container {
         this.body.setVelocityX(this.dashDirection * PHYSICS_CONFIG.DASH_SPEED);
         this.body.setVelocityY(0);
         this.emitDashTrail();
-        this.draw();
+        this.draw(time);
         return;
       }
     }
@@ -116,19 +118,52 @@ export class Player extends Phaser.GameObjects.Container {
       if (Math.abs(this.body.velocity.x) > PHYSICS_CONFIG.PLAYER_SPEED) {
         this.body.setVelocityX(Math.sign(this.body.velocity.x) * PHYSICS_CONFIG.PLAYER_SPEED);
       }
+
+      // Trailing dust while running
+      if (isGrounded && Math.random() < 0.25) {
+        ParticleEffects.createRunDust(this.scene, this.x, this.y + PHYSICS_CONFIG.HITBOX_HEIGHT / 2, this.facing);
+      }
     } else {
       this.body.setAccelerationX(0);
       this.body.setDragX(PHYSICS_CONFIG.PLAYER_DECEL);
     }
 
-    this.draw();
+    // Dynamic Headband sway based on horizontal acceleration & air velocity
+    const targetHeadband = -(this.body.velocity.x * 0.015);
+    this.headbandAngle += (targetHeadband - this.headbandAngle) * 0.2;
+
+    this.draw(time);
   }
 
   private executeJump(): void {
     this.body.setVelocityY(PHYSICS_CONFIG.PLAYER_JUMP_VELOCITY);
     this.lastJumpPressTime = -Infinity;
     this.lastGroundedTime = -Infinity;
-    this.createJumpParticles();
+
+    // Cartoon Jump Stretch
+    this.scene.tweens.killTweensOf(this);
+    this.setScale(0.82, 1.28);
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 180,
+      ease: 'Back.easeOut',
+    });
+
+    ParticleEffects.createJumpPuff(this.scene, this.x, this.y + PHYSICS_CONFIG.HITBOX_HEIGHT / 2);
+  }
+
+  private triggerLandSquash(): void {
+    this.scene.tweens.killTweensOf(this);
+    this.setScale(1.32, 0.72);
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 160,
+      ease: 'Elastic.easeOut',
+    });
   }
 
   private startDash(time: number, moveInputX: number): void {
@@ -139,79 +174,55 @@ export class Player extends Phaser.GameObjects.Container {
     this.facing = this.dashDirection > 0 ? 'right' : 'left';
     this.body.setAllowGravity(false);
     this.body.setVelocityY(0);
-    this.createDashBurstParticles();
+
+    // Cartoon Smoke Bomb Explosion at dash start
+    ParticleEffects.createSmokeBomb(this.scene, this.x, this.y);
+    ParticleEffects.createComicPopup(this.scene, this.x, this.y - 28, 'POOF!');
+
+    // Squash into bullet shape during dash
+    this.setScale(1.3, 0.75);
   }
 
   private endDash(): void {
     this.isDashing = false;
     this.body.setAllowGravity(true);
     this.body.setVelocityX(this.dashDirection * PHYSICS_CONFIG.PLAYER_SPEED);
+
+    // Spring back to normal scale
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 120,
+      ease: 'Quad.easeOut',
+    });
   }
 
   private emitDashTrail(): void {
     const ghost = this.scene.add.graphics();
     ghost.setPosition(this.x, this.y);
-    ghost.fillStyle(COLORS.PLAYER_CORE, 0.4);
+    ghost.fillStyle(COLORS.CARTOON_INK, 0.35);
     ghost.fillRoundedRect(
       -PHYSICS_CONFIG.HITBOX_WIDTH / 2,
       -PHYSICS_CONFIG.HITBOX_HEIGHT / 2,
       PHYSICS_CONFIG.HITBOX_WIDTH,
       PHYSICS_CONFIG.HITBOX_HEIGHT,
-      3
+      6
     );
     ghost.setDepth(5);
 
     this.scene.tweens.add({
       targets: ghost,
       alpha: 0,
-      scaleX: 1.2,
+      scaleX: 1.25,
       scaleY: 0.8,
-      duration: 180,
+      duration: 160,
       onComplete: () => ghost.destroy(),
     });
   }
 
-  private createJumpParticles(): void {
-    for (let i = 0; i < 6; i++) {
-      const p = this.scene.add.graphics();
-      p.fillStyle(COLORS.PLAYER_GLOW, 0.8);
-      p.fillRect(0, 0, 3, 3);
-      p.setPosition(this.x + (Math.random() - 0.5) * 20, this.y + PHYSICS_CONFIG.HITBOX_HEIGHT / 2);
-      p.setDepth(6);
-
-      this.scene.tweens.add({
-        targets: p,
-        x: p.x + (Math.random() - 0.5) * 30,
-        y: p.y + Math.random() * 15,
-        alpha: 0,
-        duration: 250,
-        onComplete: () => p.destroy(),
-      });
-    }
-  }
-
-  private createDashBurstParticles(): void {
-    for (let i = 0; i < 10; i++) {
-      const p = this.scene.add.graphics();
-      p.fillStyle(COLORS.PLAYER_CORE, 0.9);
-      p.fillRect(0, 0, 4, 4);
-      p.setPosition(this.x, this.y + (Math.random() - 0.5) * 20);
-      p.setDepth(6);
-
-      this.scene.tweens.add({
-        targets: p,
-        x: p.x - this.dashDirection * (20 + Math.random() * 40),
-        y: p.y + (Math.random() - 0.5) * 20,
-        alpha: 0,
-        scale: 0.2,
-        duration: 300,
-        onComplete: () => p.destroy(),
-      });
-    }
-  }
-
   public getSnapshotData(): Omit<PlayerSnapshot, 'timestamp'> {
-    const isGrounded = this.body.blocked.down || this.body.touching.down;
+    const isGrounded = Boolean(this.body.blocked.down || this.body.touching.down);
     return {
       x: this.x,
       y: this.y,
@@ -236,33 +247,40 @@ export class Player extends Phaser.GameObjects.Container {
     if (this.isDead) return;
     this.isDead = true;
     this.graphics.clear();
-    this.createDeathExplosion();
+    this.createCartoonDeath();
   }
 
-  private createDeathExplosion(): void {
-    for (let i = 0; i < 30; i++) {
-      const p = this.scene.add.graphics();
-      const color = Math.random() > 0.5 ? COLORS.PLAYER_CORE : 0xffffff;
-      p.fillStyle(color, 1);
-      const size = 3 + Math.random() * 4;
-      p.fillRect(0, 0, size, size);
-      p.setPosition(this.x, this.y);
-      p.setDepth(20);
+  private createCartoonDeath(): void {
+    // 1. Comic text "BAM!" or "SPLAT!"
+    ParticleEffects.createComicPopup(this.scene, this.x, this.y - 35, 'SPLAT!', 0xff0055);
 
-      const angle = Math.random() * Math.PI * 2;
-      const speed = 100 + Math.random() * 260;
+    // 2. Ink splatter burst & stars
+    ParticleEffects.createInkSplatter(this.scene, this.x, this.y);
+    ParticleEffects.createComicStars(this.scene, this.x, this.y);
 
-      this.scene.tweens.add({
-        targets: p,
-        x: this.x + Math.cos(angle) * speed,
-        y: this.y + Math.sin(angle) * speed,
-        alpha: 0,
-        scale: 0.1,
-        duration: 600,
-        ease: 'Cubic.easeOut',
-        onComplete: () => p.destroy(),
-      });
-    }
+    // 3. Ascending cartoon ghost ninja
+    const ghost = this.scene.add.graphics();
+    ghost.setPosition(this.x, this.y);
+    ghost.fillStyle(COLORS.CARTOON_WHITE, 0.7);
+    ghost.lineStyle(1.5, 0x000000, 0.8);
+    ghost.fillCircle(0, -10, 10);
+    ghost.strokeCircle(0, -10, 10);
+    ghost.fillRoundedRect(-8, -4, 16, 18, 4);
+    ghost.strokeRoundedRect(-8, -4, 16, 18, 4);
+    // Ghost little wings / halo
+    ghost.lineStyle(2, COLORS.CARTOON_HEADBAND, 0.9);
+    ghost.strokeCircle(0, -22, 6);
+    ghost.setDepth(25);
+
+    this.scene.tweens.add({
+      targets: ghost,
+      y: this.y - 90,
+      alpha: 0,
+      scale: 1.3,
+      duration: 1100,
+      ease: 'Quad.easeOut',
+      onComplete: () => ghost.destroy(),
+    });
   }
 
   public override destroy(fromScene?: boolean): void {

@@ -46,12 +46,16 @@ export class Arena {
     const bg = this.scene.add.graphics();
     bg.setDepth(-10);
 
-    // Deep gradient-like background fill
-    bg.fillStyle(COLORS.BG_DARK, 1);
+    // Deep vintage parchment / ink-wash atmosphere
+    bg.fillStyle(COLORS.CARTOON_PARCHMENT_BG, 1);
     bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-    // Cyber simulation grid
-    bg.lineStyle(1, COLORS.BG_GRID, 0.4);
+    // Subtle cartoon vignette / paper border
+    bg.lineStyle(3, 0x090a10, 0.8);
+    bg.strokeRect(4, 4, GAME_WIDTH - 8, GAME_HEIGHT - 8);
+
+    // Stylized paper grid lines
+    bg.lineStyle(1, COLORS.CARTOON_GRID, 0.35);
     const gridSize = 40;
     for (let x = 0; x <= GAME_WIDTH; x += gridSize) {
       bg.lineBetween(x, 0, x, GAME_HEIGHT);
@@ -60,10 +64,11 @@ export class Arena {
       bg.lineBetween(0, y, GAME_WIDTH, y);
     }
 
-    // Subtle center arena marker
-    bg.lineStyle(1, 0x00f0ff, 0.15);
-    bg.strokeCircle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 180);
-    bg.strokeCircle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 320);
+    // Classic Shinobi ink circle / Enso in the center arena background
+    bg.lineStyle(6, 0x1f1b2b, 0.5);
+    bg.strokeCircle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 190);
+    bg.lineStyle(2, 0xdda15e, 0.15);
+    bg.strokeCircle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 290);
   }
 
   private createPhysicsPlatforms(): void {
@@ -86,22 +91,26 @@ export class Arena {
     this.graphics.setDepth(1);
 
     for (const config of this.platformConfigs) {
-      // Platform fill
-      this.graphics.fillStyle(COLORS.PLATFORM_FILL, 0.95);
+      // Platform dark wood base
+      this.graphics.fillStyle(COLORS.CARTOON_WOOD, 0.98);
       this.graphics.fillRect(config.x, config.y, config.width, config.height);
 
-      // Outer border stroke
-      this.graphics.lineStyle(2, 0x1f2a44, 1);
+      // Heavy inky comic border stroke
+      this.graphics.lineStyle(2.5, COLORS.CARTOON_WOOD_STROKE, 1);
       this.graphics.strokeRect(config.x, config.y, config.width, config.height);
 
-      // Glowing top accent edge for platforms
+      // Warm cartoon wooden plank top edge
       if (config.y > 0 && config.height < 50) {
-        this.graphics.lineStyle(2, COLORS.PLATFORM_TOP, 0.85);
-        this.graphics.lineBetween(config.x, config.y, config.x + config.width, config.y);
+        this.graphics.fillStyle(COLORS.CARTOON_WOOD_TOP, 1);
+        this.graphics.fillRect(config.x, config.y, config.width, 4);
 
-        // Subtle glow line below top edge
-        this.graphics.lineStyle(1, COLORS.PLATFORM_STROKE, 0.3);
-        this.graphics.lineBetween(config.x + 2, config.y + 3, config.x + config.width - 2, config.y + 3);
+        this.graphics.lineStyle(1.5, COLORS.CARTOON_WOOD_STROKE, 1);
+        this.graphics.lineBetween(config.x, config.y + 4, config.x + config.width, config.y + 4);
+
+        // Cartoon rivets/pegs on platform ends
+        this.graphics.fillStyle(0x12131a, 0.9);
+        this.graphics.fillCircle(config.x + 8, config.y + 11, 2.5);
+        this.graphics.fillCircle(config.x + config.width - 8, config.y + 11, 2.5);
       }
     }
   }
