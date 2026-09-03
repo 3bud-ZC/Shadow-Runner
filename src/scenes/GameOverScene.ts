@@ -65,25 +65,21 @@ export class GameOverScene extends Phaser.Scene {
       ease: 'Back.easeOut',
     });
 
-    // Newspaper page graphics
     const paperW = 720;
     const paperH = 500;
     const paper = this.add.graphics();
 
-    // Vintage newsprint paper
     paper.fillStyle(COLORS.CARTOON_PARCHMENT_BG, 1);
     paper.fillRoundedRect(-paperW / 2, -paperH / 2, paperW, paperH, 6);
     paper.lineStyle(4, 0x090a10, 1);
     paper.strokeRoundedRect(-paperW / 2, -paperH / 2, paperW, paperH, 6);
 
-    // Newspaper Masthead banner
     paper.lineStyle(2, 0x090a10, 1);
     paper.lineBetween(-paperW / 2 + 15, -paperH / 2 + 70, paperW / 2 - 15, -paperH / 2 + 70);
     paper.lineBetween(-paperW / 2 + 15, -paperH / 2 + 75, paperW / 2 - 15, -paperH / 2 + 75);
 
     newspaper.add(paper);
 
-    // Masthead text: "THE DAILY TOON"
     const masthead = this.add.text(0, -paperH / 2 + 35, '★ THE DAILY TOON ★', {
       fontFamily: 'Impact, Georgia, serif',
       fontSize: '44px',
@@ -93,7 +89,6 @@ export class GameOverScene extends Phaser.Scene {
     }).setOrigin(0.5);
     newspaper.add(masthead);
 
-    // Sub-banner
     const edition = this.add.text(0, -paperH / 2 + 86, 'FINAL EDITION — SPECIAL DISPATCH FROM THE DOJO', {
       fontFamily: 'Georgia, serif',
       fontSize: '11px',
@@ -103,7 +98,6 @@ export class GameOverScene extends Phaser.Scene {
     }).setOrigin(0.5);
     newspaper.add(edition);
 
-    // Headline: "EXTRA! EXTRA! ..."
     const headlineText = this.deathHeadlines[Math.floor(Math.random() * this.deathHeadlines.length)];
     const headline = this.add.text(0, -paperH / 2 + 122, `EXTRA! EXTRA!\n${headlineText}`, {
       fontFamily: 'Impact, Georgia, sans-serif',
@@ -114,7 +108,6 @@ export class GameOverScene extends Phaser.Scene {
     }).setOrigin(0.5);
     newspaper.add(headline);
 
-    // Stats Grid inside newspaper columns
     const statsBox = this.add.graphics();
     statsBox.fillStyle(0x191624, 0.06);
     statsBox.fillRoundedRect(-paperW / 2 + 30, -paperH / 2 + 175, paperW - 60, 185, 4);
@@ -139,7 +132,6 @@ export class GameOverScene extends Phaser.Scene {
     ).setOrigin(0.5);
     newspaper.add(statsText);
 
-    // High Score Badge
     const bestText = this.add.text(
       0,
       -paperH / 2 + 335,
@@ -154,7 +146,6 @@ export class GameOverScene extends Phaser.Scene {
     ).setOrigin(0.5);
     newspaper.add(bestText);
 
-    // "NEW RECORD!" Ink Stamp if beaten
     if (recordResult?.isNewBestScore) {
       const stamp = this.add.container(paperW / 2 - 110, -paperH / 2 + 220);
       stamp.setRotation(0.25);
@@ -179,13 +170,11 @@ export class GameOverScene extends Phaser.Scene {
       });
     }
 
-    // Interactive Buttons
     const btnY = paperH / 2 - 60;
     this.createCartoonButton(newspaper, -190, btnY, '↺ RETRY', '#ffffff', 0xd90429, () => this.restartGame(), true);
     this.createCartoonButton(newspaper, 0, btnY, '⌂ MENU', '#ffffff', 0x2b2d42, () => this.goToMenu(), false);
     this.createCartoonButton(newspaper, 190, btnY, '⚙ SETTINGS', '#ffffff', 0x2b2d42, () => this.openSettings(), false);
 
-    // Keyboard Shortcuts
     this.input.keyboard?.on('keydown-SPACE', () => this.restartGame());
     this.input.keyboard?.on('keydown-ENTER', () => this.restartGame());
     this.input.keyboard?.on('keydown-M', () => this.goToMenu());
@@ -221,11 +210,11 @@ export class GameOverScene extends Phaser.Scene {
       strokeThickness: 3,
     }).setOrigin(0.5);
 
-    btn.add([bg, txt]);
-    btn.setSize(width, height);
-    btn.setInteractive({ useHandCursor: true });
+    const hitZone = this.add.zone(0, 0, width, height).setInteractive({ useHandCursor: true });
 
-    btn.on('pointerover', () => {
+    btn.add([bg, txt, hitZone]);
+
+    hitZone.on('pointerover', () => {
       this.tweens.killTweensOf(btn);
       this.tweens.add({
         targets: btn,
@@ -234,10 +223,12 @@ export class GameOverScene extends Phaser.Scene {
         duration: 100,
         ease: 'Sine.easeOut',
       });
-      AudioSystem.getInstance().playMenuClick();
+      try {
+        AudioSystem.getInstance().playMenuClick();
+      } catch {}
     });
 
-    btn.on('pointerout', () => {
+    hitZone.on('pointerout', () => {
       this.tweens.killTweensOf(btn);
       this.tweens.add({
         targets: btn,
@@ -248,33 +239,39 @@ export class GameOverScene extends Phaser.Scene {
       });
     });
 
-    btn.on('pointerdown', () => {
+    hitZone.on('pointerdown', () => {
       this.tweens.killTweensOf(btn);
       this.tweens.add({
         targets: btn,
         scaleX: 0.92,
         scaleY: 1.1,
-        duration: 70,
+        duration: 60,
         yoyo: true,
-        onComplete: () => callback(),
       });
+      callback();
     });
 
     parent.add(btn);
   }
 
   private restartGame(): void {
-    AudioSystem.getInstance().playMenuClick();
+    try {
+      AudioSystem.getInstance().playMenuClick();
+    } catch {}
     this.scene.start('GameScene');
   }
 
   private goToMenu(): void {
-    AudioSystem.getInstance().playMenuClick();
+    try {
+      AudioSystem.getInstance().playMenuClick();
+    } catch {}
     this.scene.start('MenuScene');
   }
 
   private openSettings(): void {
-    AudioSystem.getInstance().playMenuClick();
-    this.scene.start('SettingsScene', { returnScene: 'GameOverScene' });
+    try {
+      AudioSystem.getInstance().playMenuClick();
+    } catch {}
+    this.scene.start('SettingsScene', { returnSceneKey: 'GameOverScene' });
   }
 }
